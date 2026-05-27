@@ -605,7 +605,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   const safeCloseStream = (controller: ReadableStreamDefaultController) => {
     if (!streamClosed) {
       streamClosed = true;
-      try { safeCloseStream(controller); } catch (_) {}
+      try { controller.close(); } catch (_) {}
     }
   };
 

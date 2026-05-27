@@ -35,7 +35,7 @@ export default function FingerprintPreview({
   const spec = BROWSER_TLS_SPECS[browserPreset] || BROWSER_TLS_SPECS["chrome_124"];
   const extensionsList = spec?.extensionsList || [];
   const extensionsCount = spec?.extensionsCount || String(extensionsList.length);
-  const isH2 = connectionReuse && browserPreset.startsWith("chrome") || browserPreset.startsWith("firefox") || browserPreset.startsWith("safari");
+  const isH2 = connectionReuse && (browserPreset.startsWith("chrome") || browserPreset.startsWith("firefox") || browserPreset.startsWith("safari"));
 
   // Infer OS from TTL
   const osFingerprint =

@@ -73,7 +73,7 @@ export default function GlobalDnsManager({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] text-gray-400 block mb-1">Timeout (ms):</label>
+                <label className="text-[10px] text-gray-400 block mb-1">{t("timeout")}</label>
                 <input
                   type="number"
                   min={100}
@@ -84,7 +84,7 @@ export default function GlobalDnsManager({
                 />
               </div>
               <div>
-                <label className="text-[10px] text-gray-400 block mb-1">Concurrency:</label>
+                <label className="text-[10px] text-gray-400 block mb-1">{t("concurrency")}</label>
                 <input
                   type="number"
                   min={5}
@@ -105,12 +105,12 @@ export default function GlobalDnsManager({
                 {batchResolving ? (
                   <>
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    Resolving Globally...
+                    {t("resolvingGlobally")}
                   </>
                 ) : (
                   <>
                     <Play className="w-3.5 h-3.5 text-cyan-200" />
-                    Run Batch Resolve
+                    {t("runBatchResolve")}
                   </>
                 )}
               </button>
@@ -120,19 +120,19 @@ export default function GlobalDnsManager({
 
         <div className="bg-[#050507] border border-[#2d2d35] p-4 rounded-lg space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Cache Database</span>
+            <span className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">{t("cacheDatabase")}</span>
             <div className="flex items-center gap-1.5 text-[9px] bg-green-950/20 text-green-400 border border-green-900/30 px-1.5 py-0.2 rounded font-bold uppercase animate-pulse">
-              ACTIVE
+              {t("active")}
             </div>
           </div>
 
           <div className="divide-y divide-gray-800 text-[10px] bg-[#111116]/30 p-2 rounded">
             <div className="pb-1.5 flex justify-between">
-              <span className="text-gray-500">Cached Domains:</span>
+              <span className="text-gray-500">{t("cachedDomains")}</span>
               <span className="text-cyan-400 font-bold">{globalDnsStatus?.cachedDomains?.length || 0}</span>
             </div>
             <div className="pt-1.5 flex justify-between">
-              <span className="text-gray-500">File Prefix:</span>
+              <span className="text-gray-500">{t("filePrefix")}</span>
               <span className="text-gray-400 font-mono text-[9px]">/dns_records/</span>
             </div>
           </div>
@@ -147,14 +147,14 @@ export default function GlobalDnsManager({
               disabled={!globalDnsStatus?.cacheContent || Object.keys(globalDnsStatus.cacheContent).length === 0}
               className="flex-1 bg-gray-950 hover:bg-gray-900 text-gray-300 border border-gray-800 py-1.5 rounded text-[10px] cursor-pointer font-bold"
             >
-              Copy JSON
+              {t("copyJson")}
             </button>
             <button
               onClick={() => handleDeleteCacheDomain()}
               disabled={!globalDnsStatus?.cachedDomains || globalDnsStatus.cachedDomains.length === 0}
               className="flex-1 bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-900/45 py-1.5 rounded text-[10px] cursor-pointer font-bold"
             >
-              Clear All
+              {t("clearAll")}
             </button>
           </div>
         </div>
@@ -163,11 +163,11 @@ export default function GlobalDnsManager({
       <div className="lg:col-span-7 space-y-4 font-mono">
         <div className="bg-[#050507] border border-[#2d2d35] p-4 rounded-lg">
           <div className="flex justify-between items-center mb-2">
-            <h4 className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Batch Logs</h4>
+            <h4 className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">{t("batchLogs")}</h4>
             {batchResolving && (
               <div className="flex items-center gap-1.5 text-cyan-400 text-[10px]">
                 <RefreshCw className="w-3 h-3 animate-spin text-cyan-500" />
-                Resolving...
+                {t("resolving")}
               </div>
             )}
           </div>
@@ -177,7 +177,7 @@ export default function GlobalDnsManager({
             style={{ maxHeight: "min(160px, 13vh)" }}
           >
             {batchLogs.length === 0 ? (
-              <div className="text-gray-500 italic">No logs yet. Start a batch resolve.</div>
+              <div className="text-gray-500 italic">{t("noLogs")}</div>
             ) : (
               batchLogs.map((logLine, idx) => (
                 <div key={idx} className="border-b border-gray-800/10 last:border-0 pb-1 flex items-start gap-1">
@@ -191,9 +191,9 @@ export default function GlobalDnsManager({
 
         <div className="bg-[#050507] border border-[#2d2d35] p-4 rounded-lg space-y-3">
           <div className="flex justify-between items-center">
-            <h4 className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Cached Domains</h4>
-            <span className="text-[9px] text-[#00ffcc] font-mono bg-[#00ffcc]/5 px-2 py-0.5 rounded border border-[#00ffcc]/20">
-              JSON Layer
+            <h4 className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">{t("cachedDomainsTitle")}</h4>
+                <span className="text-[9px] text-[#00ffcc] font-mono bg-[#00ffcc]/5 px-2 py-0.5 rounded border border-[#00ffcc]/20">
+              {t("jsonLayer")}
             </span>
           </div>
 
@@ -219,7 +219,7 @@ export default function GlobalDnsManager({
                 ))}
               </div>
               <div>
-                <span className="text-[10px] text-gray-500 block mb-1">Raw Content:</span>
+                <span className="text-[10px] text-gray-500 block mb-1">{t("rawContent")}</span>
                 <div className="bg-[#111116] p-3 rounded border border-gray-800 text-[10px] text-gray-300 max-h-[180px] overflow-y-auto font-mono">
                   <pre className="font-mono text-[10px]">
                     {JSON.stringify(globalDnsStatus.cacheContent, null, 2)}
@@ -229,7 +229,7 @@ export default function GlobalDnsManager({
             </div>
           ) : (
             <div className="text-center py-10 text-xs text-gray-500 border border-dashed border-gray-800 rounded bg-[#111116]/30">
-              No cached domains. Run a batch resolve to populate.
+              {t("noCachedDomains")}
             </div>
           )}
         </div>

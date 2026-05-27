@@ -10,13 +10,6 @@ import {
   Terminal,
   Check,
   Copy,
-  SlidersHorizontal,
-  ChevronRight,
-  RefreshCw,
-  Play,
-  Zap,
-  BookOpen,
-  Lock,
 } from "lucide-react";
 import Header from "@/components/Header";
 import FingerprintConfig from "@/components/FingerprintConfig";

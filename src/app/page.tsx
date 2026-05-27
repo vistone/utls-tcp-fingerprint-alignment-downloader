@@ -102,7 +102,7 @@ export default function HomePage() {
               </button>
             </div>
             <a
-              href="/en"
+              href={`/${lang}`}
               className="px-5 py-2 bg-white/5 border border-white/10 rounded-lg text-white font-bold hover:bg-white/10 transition text-xs"
             >
               {content.nav.launchApp}
@@ -148,7 +148,7 @@ export default function HomePage() {
                 </button>
               </div>
               <a
-                href="/en"
+                href={`/${lang}`}
                 className="block text-center px-5 py-2 bg-white/5 border border-white/10 rounded-lg text-white font-bold text-sm"
               >
                 {content.nav.launchApp}
@@ -190,7 +190,7 @@ export default function HomePage() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
-              href="/en"
+              href={`/${lang}`}
               className="group px-8 py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 text-black font-bold rounded-xl text-sm tracking-wider hover:shadow-[0_0_40px_rgba(16,185,129,0.3)] transition-all duration-300 flex items-center gap-2"
             >
               {content.hero.cta}
@@ -374,7 +374,7 @@ export default function HomePage() {
                   ))}
                 </ul>
                 <a
-                  href="/en"
+                  href={`/${lang}`}
                   className={`block text-center py-3 rounded-xl text-sm font-bold font-mono transition ${
                     i === 1
                       ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-black hover:shadow-[0_0_30px_rgba(16,185,129,0.2)]"
@@ -425,7 +425,7 @@ export default function HomePage() {
           </h2>
           <p className="text-gray-400 text-lg mb-10 max-w-xl mx-auto">{content.cta.subtitle}</p>
           <a
-            href="/en"
+            href={`/${lang}`}
             className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 text-black font-bold rounded-xl text-sm tracking-wider hover:shadow-[0_0_40px_rgba(16,185,129,0.3)] transition-all duration-300"
           >
             {content.cta.button}
