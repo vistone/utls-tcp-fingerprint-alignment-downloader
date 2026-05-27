@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import os from "os";
+import path from "path";
 import net from "net";
 import tls from "tls";
 import dns from "dns";
@@ -646,6 +647,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     dnsHosts = "",
     lbStrategy = "fastest",
     preferHttp3 = false,
+    grpcEnabled = false,
+    grpcServerAddress = "",
   } = body;
 
   if (!targetUrl) {
@@ -1169,6 +1172,7 @@ export async function POST(request: NextRequest): Promise<Response> {
             }
             
             let receivedSize = 0;
+            const chunks: Buffer[] = grpcEnabled ? [] : [];
             let progressTimer: NodeJS.Timeout | null = setInterval(() => {
               if (streamClosed) {
                 if (progressTimer) clearInterval(progressTimer);
@@ -1189,6 +1193,7 @@ export async function POST(request: NextRequest): Promise<Response> {
                 const { done, value } = await reader.read();
                 if (done) break;
                 receivedSize += value?.length || 0;
+                if (grpcEnabled && value) chunks.push(Buffer.from(value));
               }
             } finally {
               if (progressTimer) clearInterval(progressTimer);
@@ -1202,6 +1207,35 @@ export async function POST(request: NextRequest): Promise<Response> {
             sendLog("progress", "", { progress: 100, speed: parseFloat((receivedSize / (1024 * 1024) / (finalDuration || 0.01)).toFixed(2)), received: receivedSize, total: receivedSize });
             sendLog("log", `[FETCH] Download complete!`);
             sendLog("log", `[FETCH] Summary: Size: ${finalSizeFormatted}, Duration: ${finalDuration.toFixed(2)}s`);
+
+            // Push to gRPC server if enabled
+            if (grpcEnabled && grpcServerAddress && chunks.length > 0) {
+              sendLog("log", `[GRPC] Pushing file to ${grpcServerAddress}...`);
+              try {
+                const { pushFile } = await import("@/lib/grpc-client");
+                const fileData = Buffer.concat(chunks);
+                const filename = path.basename(parsedTargetUrl.pathname) || "download";
+                const pushResult = await pushFile({
+                  serverAddress: grpcServerAddress,
+                  filename,
+                  data: fileData,
+                  mimeType: contentType,
+                  metadata: {
+                    source_url: targetUrl,
+                    download_duration: `${finalDuration.toFixed(2)}s`,
+                    download_size: `${receivedSize}`,
+                  },
+                });
+                if (pushResult.success) {
+                  sendLog("log", `[GRPC] Push success: ${filename} -> ${pushResult.storagePath}`);
+                } else {
+                  sendLog("error", `[GRPC] Push failed: ${pushResult.message}`);
+                }
+              } catch (gErr: any) {
+                sendLog("error", `[GRPC] Push error: ${gErr.message}`);
+              }
+            }
+
             sendLog("state", "", { state: "completed", progress: 100 });
             closeStream();
             return;

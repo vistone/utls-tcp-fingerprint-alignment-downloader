@@ -21,6 +21,10 @@ interface FingerprintConfigProps {
   setConnectionReuse: (v: boolean) => void;
   preferHttp3: boolean;
   setPreferHttp3: (v: boolean) => void;
+  grpcEnabled: boolean;
+  setGrpcEnabled: (v: boolean) => void;
+  grpcServerAddress: string;
+  setGrpcServerAddress: (v: string) => void;
   useProxy: boolean;
   setUseProxy: (v: boolean) => void;
   proxyHost: string;
@@ -58,6 +62,10 @@ export default function FingerprintConfig({
   setConnectionReuse,
   preferHttp3,
   setPreferHttp3,
+  grpcEnabled,
+  setGrpcEnabled,
+  grpcServerAddress,
+  setGrpcServerAddress,
   useProxy,
   setUseProxy,
   proxyHost,
@@ -216,6 +224,41 @@ export default function FingerprintConfig({
                 />
               </button>
             </div>
+          </div>
+
+          <div className="space-y-1.5 p-3 bg-[#050507] border border-[#2d2d35]/60 rounded">
+            <div className="flex items-center justify-between">
+              <div className="max-w-[75%]">
+                <span className="text-[10px] uppercase font-mono text-orange-400 font-bold">
+                  gRPC Push
+                </span>
+              </div>
+              <button
+                onClick={() => setGrpcEnabled(!grpcEnabled)}
+                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${
+                  grpcEnabled ? "bg-orange-500" : "bg-gray-700"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-[#111116] shadow-lg transition ${
+                    grpcEnabled ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+            {grpcEnabled && (
+              <div className="space-y-1.5">
+                <label className="text-[9px] text-gray-500 block">Remote Server Address</label>
+                <input
+                  type="text"
+                  value={grpcServerAddress}
+                  onChange={(e) => setGrpcServerAddress(e.target.value)}
+                  placeholder="192.168.1.10:50051"
+                  className="w-full bg-[#111116] border border-[#2d2d35] rounded px-2.5 py-1.5 text-orange-300 focus:outline-none focus:border-orange-500 text-xs font-mono"
+                />
+                <p className="text-[9px] text-gray-600">Download完成后自动通过 gRPC 推送文件</p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-3 p-3 bg-[#050507] border border-[#2d2d35]/60 rounded">

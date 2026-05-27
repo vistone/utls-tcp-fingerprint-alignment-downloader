@@ -14,6 +14,7 @@ interface FingerprintPreviewProps {
   greasingEnabled: boolean;
   tcpPreset: string;
   preferHttp3: boolean;
+  grpcEnabled: boolean;
 }
 
 const TCP_SCALE = 7; // Standard for modern OSes
@@ -31,6 +32,7 @@ export default function FingerprintPreview({
   greasingEnabled,
   tcpPreset,
   preferHttp3,
+  grpcEnabled,
 }: FingerprintPreviewProps) {
   const spec = BROWSER_TLS_SPECS[browserPreset] || BROWSER_TLS_SPECS["chrome_124"];
   const extensionsList = spec?.extensionsList || [];
@@ -147,6 +149,12 @@ export default function FingerprintPreview({
               <span className="text-gray-500">HTTP/3 (QUIC)</span>
               <span className={preferHttp3 ? "text-indigo-400 font-bold" : "text-gray-500"}>
                 {preferHttp3 ? "✅ Preferred" : "Disabled"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">gRPC Push</span>
+              <span className={grpcEnabled ? "text-orange-400 font-bold" : "text-gray-500"}>
+                {grpcEnabled ? "✅ Enabled" : "Disabled"}
               </span>
             </div>
           </div>

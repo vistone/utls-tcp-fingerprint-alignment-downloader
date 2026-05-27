@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@currentspace/http3": "^0.8.4",
+    "@grpc/grpc-js": "^1.14.4",
+    "@grpc/proto-loader": "^0.8.1",
     "dotenv": "^17.2.3",
     "h3": "^2.0.1-rc.22",
     "lucide-react": "^0.546.0",

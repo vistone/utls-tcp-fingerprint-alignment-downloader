@@ -144,6 +144,8 @@ export default function Page() {
   const [useProxy, setUseProxy] = useState(false);
   const [proxyHost, setProxyHost] = useState("");
   const [proxyPort, setProxyPort] = useState("");
+  const [grpcEnabled, setGrpcEnabled] = useState(false);
+  const [grpcServerAddress, setGrpcServerAddress] = useState("");
 
   const [globalDnsStatus, setGlobalDnsStatus] = useState<GlobalDnsStatus | null>(null);
   const [batchDomainsInput, setBatchDomainsInput] = useState("google.com, clouflare.com, github.com");
@@ -450,6 +452,8 @@ export default function Page() {
           h2WindowIncrement,
           connectionReuse,
           preferHttp3,
+          grpcEnabled,
+          grpcServerAddress,
           useProxy,
           proxyHost,
           proxyPort,
@@ -559,6 +563,8 @@ export default function Page() {
           h2WindowIncrement,
           connectionReuse,
           preferHttp3,
+          grpcEnabled,
+          grpcServerAddress,
           useProxy,
           proxyHost,
           proxyPort,
@@ -814,6 +820,10 @@ export default function Page() {
             setConnectionReuse={setConnectionReuse}
             preferHttp3={preferHttp3}
             setPreferHttp3={setPreferHttp3}
+            grpcEnabled={grpcEnabled}
+            setGrpcEnabled={setGrpcEnabled}
+            grpcServerAddress={grpcServerAddress}
+            setGrpcServerAddress={setGrpcServerAddress}
             useProxy={useProxy}
             setUseProxy={setUseProxy}
             proxyHost={proxyHost}
@@ -858,6 +868,7 @@ export default function Page() {
             greasingEnabled={greasingEnabled}
             tcpPreset={tcpPreset}
             preferHttp3={preferHttp3}
+            grpcEnabled={grpcEnabled}
           />
         </section>
 
