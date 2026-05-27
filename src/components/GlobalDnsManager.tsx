@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { SlidersHorizontal, Play, RefreshCw, Network } from "lucide-react";
 
 interface CachedDomain {
@@ -44,6 +44,11 @@ export default function GlobalDnsManager({
 }: GlobalDnsManagerProps) {
   const t = useTranslations("GlobalDnsManager");
   const logRef = useRef<HTMLDivElement | null>(null);
+  const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
+
+  const selectedData = selectedDomain && globalDnsStatus?.cacheContent?.[selectedDomain]
+    ? globalDnsStatus.cacheContent[selectedDomain]
+    : null;
 
   useEffect(() => {
     if (logRef.current) {
@@ -192,7 +197,7 @@ export default function GlobalDnsManager({
         <div className="bg-[#050507] border border-[#2d2d35] p-4 rounded-lg space-y-3">
           <div className="flex justify-between items-center">
             <h4 className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">{t("cachedDomainsTitle")}</h4>
-                <span className="text-[9px] text-[#00ffcc] font-mono bg-[#00ffcc]/5 px-2 py-0.5 rounded border border-[#00ffcc]/20">
+            <span className="text-[9px] text-[#00ffcc] font-mono bg-[#00ffcc]/5 px-2 py-0.5 rounded border border-[#00ffcc]/20">
               {t("jsonLayer")}
             </span>
           </div>
@@ -201,12 +206,22 @@ export default function GlobalDnsManager({
             <div className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[140px] overflow-y-auto">
                 {globalDnsStatus.cachedDomains.map((entry) => (
-                  <div key={entry.domain} className="bg-[#111116] border border-gray-800 p-2.5 rounded flex flex-col justify-between">
+                  <button
+                    key={entry.domain}
+                    onClick={() => setSelectedDomain(selectedDomain === entry.domain ? null : entry.domain)}
+                    className={`text-left bg-[#111116] border p-2.5 rounded flex flex-col justify-between transition cursor-pointer ${
+                      selectedDomain === entry.domain
+                        ? "border-cyan-500/50 bg-cyan-500/5"
+                        : "border-gray-800 hover:border-gray-600"
+                    }`}
+                  >
                     <div className="flex items-center justify-between">
-                      <span className="text-white text-xs font-bold font-mono truncate max-w-[150px]">{entry.domain}</span>
+                      <span className={`text-xs font-bold font-mono truncate max-w-[150px] ${
+                        selectedDomain === entry.domain ? "text-cyan-300" : "text-white"
+                      }`}>{entry.domain}</span>
                       <button
-                        onClick={() => handleDeleteCacheDomain(entry.domain)}
-                        className="text-red-400 hover:text-red-300 text-[9px] font-mono hover:underline cursor-pointer"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteCacheDomain(entry.domain); }}
+                        className="text-red-400 hover:text-red-300 text-[9px] font-mono hover:underline"
                       >
                         DELETE
                       </button>
@@ -215,17 +230,57 @@ export default function GlobalDnsManager({
                       <span>IPv4: <strong className="text-cyan-400">{entry.ipv4Count}</strong></span>
                       <span>IPv6: <strong className="text-pink-400">{entry.ipv6Count}</strong></span>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
-              <div>
-                <span className="text-[10px] text-gray-500 block mb-1">{t("rawContent")}</span>
-                <div className="bg-[#111116] p-3 rounded border border-gray-800 text-[10px] text-gray-300 max-h-[180px] overflow-y-auto font-mono">
-                  <pre className="font-mono text-[10px]">
-                    {JSON.stringify(globalDnsStatus.cacheContent, null, 2)}
-                  </pre>
+
+              {selectedData ? (
+                <div className="space-y-2 border border-cyan-500/20 rounded-lg p-3 bg-[#111116]/50">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-cyan-400 font-mono">{selectedDomain}</span>
+                    <button
+                      onClick={() => setSelectedDomain(null)}
+                      className="text-[9px] text-gray-500 hover:text-gray-300 cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  {selectedData.ipv4 && selectedData.ipv4.length > 0 && (
+                    <div>
+                      <div className="text-[9px] text-gray-500 uppercase mb-1">IPv4 ({selectedData.ipv4.length})</div>
+                      <div className="space-y-0.5">
+                        {selectedData.ipv4.map((ip: string, i: number) => (
+                          <div key={i} className="flex items-center gap-2 text-[10px] font-mono">
+                            <span className="w-1 h-1 rounded-full bg-cyan-400 shrink-0" />
+                            <span className="text-gray-300">{ip}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {selectedData.ipv6 && selectedData.ipv6.length > 0 && (
+                    <div>
+                      <div className="text-[9px] text-gray-500 uppercase mb-1">IPv6 ({selectedData.ipv6.length})</div>
+                      <div className="space-y-0.5">
+                        {selectedData.ipv6.map((ip: string, i: number) => (
+                          <div key={i} className="flex items-center gap-2 text-[10px] font-mono">
+                            <span className="w-1 h-1 rounded-full bg-pink-400 shrink-0" />
+                            <span className="text-gray-300">{ip}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {(!selectedData.ipv4 || selectedData.ipv4.length === 0) &&
+                   (!selectedData.ipv6 || selectedData.ipv6.length === 0) && (
+                    <div className="text-[10px] text-gray-500 italic">No IP records for this domain.</div>
+                  )}
                 </div>
-              </div>
+              ) : (
+                <div className="text-center py-4 text-[10px] text-gray-600 border border-dashed border-gray-800 rounded bg-[#111116]/30">
+                  {t("selectDomainHint")}
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-10 text-xs text-gray-500 border border-dashed border-gray-800 rounded bg-[#111116]/30">

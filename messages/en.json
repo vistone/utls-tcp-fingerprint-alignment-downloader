@@ -287,8 +287,8 @@
     "delete": "DELETE",
     "ipv4": "IPv4:",
     "ipv6": "IPv6:",
-    "rawContent": "Raw Content:",
-    "noCachedDomains": "No cached domains. Run a batch resolve to populate."
+    "noCachedDomains": "No cached domains. Run a batch resolve to populate.",
+    "selectDomainHint": "Click a domain above to view its IP records"
   },
   "Page": {
     "tabDownloader": "Aligned Downloader",

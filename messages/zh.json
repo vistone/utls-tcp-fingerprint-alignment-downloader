@@ -287,8 +287,8 @@
     "delete": "删除",
     "ipv4": "IPv4:",
     "ipv6": "IPv6:",
-    "rawContent": "原始内容:",
-    "noCachedDomains": "没有缓存的域名。运行批量解析以填充。"
+    "noCachedDomains": "没有缓存的域名。运行批量解析以填充。",
+    "selectDomainHint": "点击上方域名查看 IP 记录"
   },
   "Page": {
     "tabDownloader": "对齐下载器",
