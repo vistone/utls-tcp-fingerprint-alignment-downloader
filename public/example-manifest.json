@@ -1,0 +1,11 @@
+{
+  "title": "Gopher-X Real Network Batch Download Manifest",
+  "version": "1.0.0",
+  "description": "This is a real JSON manifest containing real cloud files to demonstrate the high performance aligned multi-stream download tunnel.",
+  "downloads": [
+    "https://kh.google.com/rt/earth/PlanetoidMetadata",
+    "https://raw.githubusercontent.com/google/gson/master/README.md",
+    "https://raw.githubusercontent.com/facebook/react/main/README.md",
+    "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
+  ]
+}

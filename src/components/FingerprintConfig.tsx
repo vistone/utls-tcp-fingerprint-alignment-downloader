@@ -1,0 +1,414 @@
+"use client";
+
+import { Network, Lock, SlidersHorizontal } from "lucide-react";
+
+interface FingerprintConfigProps {
+  browserPreset: string;
+  setBrowserPreset: (v: string) => void;
+  cdnType: string;
+  setCdnType: (v: "cloudflare" | "akamai" | "incapsula" | "custom") => void;
+  tcpTtl: number;
+  setTcpTtl: (v: number) => void;
+  tcpMss: number;
+  setTcpMss: (v: number) => void;
+  tcpWindowSize: number;
+  setTcpWindowSize: (v: number) => void;
+  h2WindowIncrement: number;
+  setH2WindowIncrement: (v: number) => void;
+  greasingEnabled: boolean;
+  setGreasingEnabled: (v: boolean) => void;
+  connectionReuse: boolean;
+  setConnectionReuse: (v: boolean) => void;
+  preferHttp3: boolean;
+  setPreferHttp3: (v: boolean) => void;
+  useProxy: boolean;
+  setUseProxy: (v: boolean) => void;
+  proxyHost: string;
+  setProxyHost: (v: string) => void;
+  proxyPort: string;
+  setProxyPort: (v: string) => void;
+  downloadMode: "single" | "batch";
+  setDownloadMode: (v: "single" | "batch") => void;
+  targetUrl: string;
+  setTargetUrl: (v: string) => void;
+  batchManifestUrl: string;
+  setBatchManifestUrl: (v: string) => void;
+  isParsingManifest: boolean;
+  loadBatchManifest: (url: string) => void;
+  tcpPreset: string;
+  applyPresetConfig: (preset: string) => void;
+}
+
+export default function FingerprintConfig({
+  browserPreset,
+  setBrowserPreset,
+  cdnType,
+  setCdnType,
+  tcpTtl,
+  setTcpTtl,
+  tcpMss,
+  setTcpMss,
+  tcpWindowSize,
+  setTcpWindowSize,
+  h2WindowIncrement,
+  setH2WindowIncrement,
+  greasingEnabled,
+  setGreasingEnabled,
+  connectionReuse,
+  setConnectionReuse,
+  preferHttp3,
+  setPreferHttp3,
+  useProxy,
+  setUseProxy,
+  proxyHost,
+  setProxyHost,
+  proxyPort,
+  setProxyPort,
+  downloadMode,
+  setDownloadMode,
+  targetUrl,
+  setTargetUrl,
+  batchManifestUrl,
+  setBatchManifestUrl,
+  isParsingManifest,
+  loadBatchManifest,
+  tcpPreset,
+  applyPresetConfig,
+}: FingerprintConfigProps) {
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Target Host Settings */}
+      <div className="bg-[#111116] border border-[#2d2d35] p-5 rounded relative overflow-hidden shadow-2xl">
+        <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-teal-400 to-[#00ffcc]" />
+        <h2 className="text-xs font-bold uppercase tracking-wider text-white font-mono flex items-center gap-2 mb-4">
+          <Network className="w-4 h-4 text-[#00ffcc]" />
+          1. Target & Dispatch
+        </h2>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-[10px] uppercase font-mono text-gray-500">Mode</label>
+            <div className="grid grid-cols-2 gap-1.5 text-center font-mono text-[10px]">
+              <button
+                onClick={() => setDownloadMode("single")}
+                className={`p-2 border rounded transition ${
+                  downloadMode === "single"
+                    ? "border-[#00ffcc] bg-[#00ffcc]/10 text-white font-bold"
+                    : "border-[#2d2d35] text-gray-400 hover:border-gray-500"
+                }`}
+              >
+                Single
+              </button>
+              <button
+                onClick={() => setDownloadMode("batch")}
+                className={`p-2 border rounded transition ${
+                  downloadMode === "batch"
+                    ? "border-teal-400 bg-teal-400/10 text-white font-bold"
+                    : "border-[#2d2d35] text-gray-400 hover:border-gray-500"
+                }`}
+              >
+                Batch
+              </button>
+            </div>
+          </div>
+
+          {downloadMode === "single" ? (
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase font-mono text-gray-400">Target URL</label>
+              <input
+                type="text"
+                value={targetUrl}
+                onChange={(e) => setTargetUrl(e.target.value)}
+                className="w-full bg-[#050507] border border-[#2d2d35] rounded p-2.5 text-xs text-teal-300 focus:outline-none focus:border-[#00ffcc] font-mono"
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-mono text-gray-400">Manifest URL</label>
+                <input
+                  type="text"
+                  value={batchManifestUrl}
+                  onChange={(e) => setBatchManifestUrl(e.target.value)}
+                  className="w-full bg-[#050507] border border-[#2d2d35] rounded p-2.5 text-xs text-teal-300 focus:outline-none focus:border-teal-400 font-mono"
+                  placeholder="/example-manifest.json"
+                />
+              </div>
+              <button
+                onClick={() => loadBatchManifest(batchManifestUrl)}
+                disabled={isParsingManifest}
+                className="w-full bg-teal-600/30 font-bold border border-teal-500/50 text-teal-300 px-3 py-2 rounded text-[10.5px] font-mono transition hover:bg-teal-600/50 disabled:opacity-40"
+              >
+                {isParsingManifest ? "Parsing..." : "Load Manifest"}
+              </button>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] uppercase font-mono text-gray-400">CDN Type</label>
+            <div className="grid grid-cols-2 gap-1.5 font-mono text-[10px]">
+              {(["cloudflare", "akamai", "incapsula", "custom"] as const).map((cdn) => {
+                const colors: Record<string, string> = {
+                  cloudflare: "border-amber-500 bg-amber-500/10 text-amber-300",
+                  akamai: "border-sky-500 bg-sky-500/10 text-sky-300",
+                  incapsula: "border-purple-500 bg-purple-500/10 text-purple-300",
+                  custom: "border-teal-500 bg-teal-500/10 text-teal-300",
+                };
+                const labels: Record<string, string> = {
+                  cloudflare: "Cloudflare",
+                  akamai: "Akamai",
+                  incapsula: "Imperva",
+                  custom: "F5/AWS",
+                };
+                return (
+                  <button
+                    key={cdn}
+                    onClick={() => setCdnType(cdn)}
+                    className={`p-2 border rounded transition ${
+                      cdnType === cdn ? colors[cdn] : "border-[#2d2d35] text-gray-400 hover:border-gray-500"
+                    }`}
+                  >
+                    {labels[cdn]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-1.5 p-3 bg-[#050507] border border-[#2d2d35]/60 rounded">
+            <div className="flex items-center justify-between">
+              <div className="max-w-[75%]">
+                <span className="text-[10px] uppercase font-mono text-cyan-300 font-bold">
+                  Connection Reuse
+                </span>
+              </div>
+              <button
+                onClick={() => setConnectionReuse(!connectionReuse)}
+                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${
+                  connectionReuse ? "bg-[#00ffcc]" : "bg-gray-700"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-[#111116] shadow-lg transition ${
+                    connectionReuse ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5 p-3 bg-[#050507] border border-[#2d2d35]/60 rounded">
+            <div className="flex items-center justify-between">
+              <div className="max-w-[75%]">
+                <span className="text-[10px] uppercase font-mono text-indigo-400 font-bold">
+                  HTTP/3 QUIC Mode
+                </span>
+              </div>
+              <button
+                onClick={() => setPreferHttp3(!preferHttp3)}
+                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${
+                  preferHttp3 ? "bg-indigo-500" : "bg-gray-700"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-[#111116] shadow-lg transition ${
+                    preferHttp3 ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-3 p-3 bg-[#050507] border border-[#2d2d35]/60 rounded">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-mono text-amber-400 font-bold">Proxy Tunnel</span>
+              <button
+                onClick={() => setUseProxy(!useProxy)}
+                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${
+                  useProxy ? "bg-amber-500" : "bg-gray-700"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-[#111116] shadow-lg transition ${
+                    useProxy ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+            {useProxy && (
+              <div className="grid grid-cols-3 gap-2 pt-1 font-mono text-[10px]">
+                <div className="col-span-2">
+                  <label className="text-[9px] text-gray-500 block mb-1">Host</label>
+                  <input
+                    type="text"
+                    value={proxyHost}
+                    onChange={(e) => setProxyHost(e.target.value)}
+                    placeholder="127.0.0.1"
+                    className="w-full bg-[#111116] border border-[#2d2d35] rounded px-2.5 py-1.5 text-amber-300 focus:outline-none focus:border-amber-500 text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] text-gray-500 block mb-1">Port</label>
+                  <input
+                    type="text"
+                    value={proxyPort}
+                    onChange={(e) => setProxyPort(e.target.value)}
+                    placeholder="7890"
+                    className="w-full bg-[#111116] border border-[#2d2d35] rounded px-2.5 py-1.5 text-amber-300 focus:outline-none focus:border-amber-500 text-xs font-mono"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* TLS Profile */}
+      <div className="bg-[#111116] border border-[#2d2d35] p-5 rounded relative overflow-hidden shadow-xl">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-white font-mono flex items-center gap-2 mb-4">
+          <Lock className="w-4 h-4 text-cyan-400" />
+          2. TLS Profile (uTLS JA3/JA4)
+        </h2>
+        <div className="space-y-4 font-mono text-xs">
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-gray-400 block">Browser Preset</label>
+            <select
+              value={browserPreset}
+              onChange={(e) => setBrowserPreset(e.target.value)}
+              className="w-full bg-[#111116] border border-[#2d2d35] text-white p-2.5 rounded text-xs focus:ring-1 focus:ring-[#00ffcc] focus:outline-none"
+            >
+              <optgroup label="Chrome / Chromium">
+                <option value="chrome_124">Chrome v124 (Latest)</option>
+                <option value="chrome_115">Chrome v115</option>
+                <option value="chrome_100">Chrome v100</option>
+                <option value="chrome_88">Chrome v88</option>
+              </optgroup>
+              <optgroup label="Firefox">
+                <option value="firefox_120">Firefox v120</option>
+                <option value="firefox_110">Firefox v110</option>
+                <option value="firefox_90">Firefox v90</option>
+              </optgroup>
+              <optgroup label="Safari">
+                <option value="safari_17">Safari v17.2</option>
+                <option value="safari_15">Safari v15.4</option>
+                <option value="safari_13">Safari v13.1</option>
+              </optgroup>
+              <optgroup label="Utilities">
+                <option value="python_310">Python urllib/3.10</option>
+                <option value="curl_8">curl 8.2.1</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <div className="bg-[#050507] p-3 rounded border border-[#1a1a24] space-y-2">
+            <div className="flex justify-between items-center text-[11px]">
+              <span className="text-gray-400">TLS Grease:</span>
+              <button
+                onClick={() => setGreasingEnabled(!greasingEnabled)}
+                className={`px-2 py-0.5 rounded text-[10px] border tracking-wider transition ${
+                  greasingEnabled
+                    ? "border-[#00ffcc] text-[#00ffcc] bg-[#00ffcc]/5"
+                    : "border-gray-600 text-gray-500"
+                }`}
+              >
+                {greasingEnabled ? "ENABLED" : "DISABLED"}
+              </button>
+            </div>
+            <div className="flex justify-between items-center text-[11px]">
+              <span className="text-gray-400">H2 Window:</span>
+              <select
+                value={h2WindowIncrement}
+                onChange={(e) => setH2WindowIncrement(Number(e.target.value))}
+                className="bg-[#111116] border border-[#2d2d35] text-white rounded text-[10px] focus:outline-none p-1"
+              >
+                <option value={6291456}>6291456 (Chrome 120+)</option>
+                <option value={1048576}>1048576 (Safari)</option>
+                <option value={65535}>65535 (HTTP/1.1)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* TCP/IP Stack */}
+      <div className="bg-[#111116] border border-[#2d2d35] p-5 rounded relative overflow-hidden shadow-xl">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-white font-mono flex items-center gap-2 mb-4">
+          <SlidersHorizontal className="w-4 h-4 text-purple-400" />
+          3. TCP/IP SYN Fingerprint
+        </h2>
+
+        <div className="space-y-4 font-mono text-xs">
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-gray-400 block">TCP Stack Preset</label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {(["windows", "macos", "linux"] as const).map((os) => (
+                <button
+                  key={os}
+                  onClick={() => applyPresetConfig(os)}
+                  className={`p-1.5 border rounded cursor-pointer ${
+                    tcpPreset === os
+                      ? "border-purple-500 bg-purple-500/10 text-white"
+                      : "border-[#2d2d35] text-gray-400"
+                  }`}
+                >
+                  {os === "windows" ? "Windows 11" : os === "macos" ? "macOS" : "Linux"}
+                </button>
+              ))}
+              <button
+                onClick={() => applyPresetConfig("mismatched")}
+                className="p-1.5 border border-rose-500/30 text-rose-400 bg-rose-500/5 rounded cursor-pointer"
+              >
+                Mismatched
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-3 bg-[#050507] p-3 rounded border border-[#1a1a24]">
+            <div>
+              <div className="flex justify-between text-[11px] text-gray-400 mb-1">
+                <span>IP TTL:</span>
+                <span className="text-[#00ffcc] font-bold">{tcpTtl}</span>
+              </div>
+              <input
+                type="range"
+                min={32}
+                max={255}
+                value={tcpTtl}
+                onChange={(e) => setTcpTtl(Number(e.target.value))}
+                className="w-full accent-[#00ffcc]"
+              />
+            </div>
+            <div>
+              <div className="flex justify-between text-[11px] text-gray-400 mb-1">
+                <span>MSS:</span>
+                <span className="text-purple-400 font-bold">{tcpMss} bytes</span>
+              </div>
+              <input
+                type="range"
+                min={1200}
+                max={1500}
+                value={tcpMss}
+                onChange={(e) => setTcpMss(Number(e.target.value))}
+                className="w-full accent-purple-400"
+              />
+            </div>
+            <div>
+              <div className="flex justify-between text-[11px] text-gray-400 mb-1">
+                <span>Window Size:</span>
+                <span className="text-cyan-400 font-bold">{tcpWindowSize.toLocaleString()}</span>
+              </div>
+              <input
+                type="range"
+                min={8192}
+                max={262144}
+                step={1024}
+                value={tcpWindowSize}
+                onChange={(e) => setTcpWindowSize(Number(e.target.value))}
+                className="w-full accent-cyan-400"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

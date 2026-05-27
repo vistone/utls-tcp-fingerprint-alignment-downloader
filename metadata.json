@@ -1,0 +1,6 @@
+{
+  "name": "uTLS & TCP Fingerprint Alignment Downloader",
+  "description": "An interactive, full-stack TypeScript simulator for aligning TLS JA3/JA4 fingerprints and lower-level TCP/IP SYN characteristics (TTL, MSS, TCP Options order) to bypass aggressive anti-bot 403 blocks on Cloudflare, Akamai, and Imperva.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,13 @@
+node_modules/
+build/
+dist/
+.next/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+*.bak
+dns_records/
+.claude/
+tsconfig.tsbuildinfo
