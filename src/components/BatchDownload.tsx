@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRef, useEffect } from "react";
 import { Terminal, RefreshCw, SlidersHorizontal } from "lucide-react";
 
@@ -44,6 +45,7 @@ export default function BatchDownload({
   tcpWindowSize,
   connectionReuse,
 }: BatchDownloadProps) {
+  const t = useTranslations("BatchDownload");
   const logRef = useRef<HTMLDivElement | null>(null);
   const selectedItem = batchItems.find((x) => x.id === selectedBatchItemId) || batchItems[0];
 
@@ -61,10 +63,10 @@ export default function BatchDownload({
             <div>
               <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
                 <Terminal className="w-4 h-4 text-teal-400" />
-                Batch Dispatch Pool
+                {t("poolTitle")}
               </h3>
               <p className="text-[10px] font-mono text-gray-500 mt-0.5">
-                Concurrency: <span className="text-white font-bold">{batchItems.length} CHUNKS</span>
+                {t("concurrency")} <span className="text-white font-bold">{batchItems.length} {t("chunks")}</span>
               </p>
             </div>
             <button
@@ -74,7 +76,7 @@ export default function BatchDownload({
                 isBatchRunning ? "opacity-50 cursor-not-allowed" : "hover:from-teal-400 hover:to-emerald-300"
               }`}
             >
-              Start All
+              {t("startAll")}
             </button>
           </div>
 
@@ -104,28 +106,28 @@ export default function BatchDownload({
                     <div className="flex items-center gap-2 shrink-0">
                       {item.status === "idle" && (
                         <span className="px-2 py-0.5 rounded text-[9px] font-bold border border-gray-800 bg-gray-900/40 text-gray-500">
-                          IDLE
+                          {t("idle")}
                         </span>
                       )}
                       {item.status === "handshake" && (
                         <span className="px-2 py-0.5 rounded text-[9px] font-bold border border-cyan-500 bg-cyan-500/10 text-cyan-300 animate-pulse flex items-center gap-1">
                           <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                          ALIGN
+                          {t("align")}
                         </span>
                       )}
                       {item.status === "downloading" && (
                         <span className="px-2 py-0.5 rounded text-[9px] font-bold border border-teal-500 bg-teal-500/10 text-[#00ffcc]">
-                          ACTIVE
+                          {t("active")}
                         </span>
                       )}
                       {item.status === "completed" && (
                         <span className="px-2 py-0.5 rounded text-[9px] font-bold border border-emerald-500 bg-emerald-500/10 text-emerald-400">
-                          DONE
+                          {t("done")}
                         </span>
                       )}
                       {item.status === "failed" && (
                         <span className="px-2 py-0.5 rounded text-[9px] font-bold border border-rose-500 bg-rose-500/10 text-rose-300">
-                          403
+                          {t("status403")}
                         </span>
                       )}
                       {item.id >= 0 && (
@@ -137,7 +139,7 @@ export default function BatchDownload({
                           disabled={item.status === "handshake" || item.status === "downloading"}
                           className="p-1 px-1.5 bg-teal-950/40 hover:bg-teal-900/60 border border-teal-500/30 text-teal-300 rounded text-[9px] font-extrabold transition disabled:opacity-30 cursor-pointer"
                         >
-                          Download
+                          {t("download")}
                         </button>
                       )}
                     </div>
@@ -145,17 +147,17 @@ export default function BatchDownload({
 
                   <div className="grid grid-cols-3 gap-2 text-[10px] font-mono mt-1 border-t border-[#1f1f27] pt-2">
                     <div className="text-gray-500">
-                      Speed: <span className="text-white font-bold">{item.speed ? `${item.speed} MB/s` : "0 B/s"}</span>
+                      {t("speed")} <span className="text-white font-bold">{item.speed ? `${item.speed} MB/s` : "0 B/s"}</span>
                     </div>
                     <div className="text-gray-500 text-center">
-                      Size:{" "}
+                      {t("size")}{" "}
                       <span className="text-gray-300 font-bold">
                         {item.receivedSize > 1024 * 1024
                           ? `${(item.receivedSize / (1024 * 1024)).toFixed(2)} MB`
                           : `${(item.receivedSize / 1024).toFixed(1)} KB`}
                       </span>
                     </div>
-                    <div className="text-right text-[#00ffcc] font-bold">{Math.round(item.progress)}%</div>
+                    <div className="text-right text-[#00ffcc] font-bold">{Math.round(item.progress)}{t("progressPercent")}</div>
                   </div>
 
                   <div className="h-1.5 bg-[#111116] rounded-full overflow-hidden mt-1">
@@ -178,18 +180,18 @@ export default function BatchDownload({
           <div>
             <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-white mb-2 flex items-center gap-1.5 text-teal-400 border-b border-[#2d2d35] pb-2">
               <Terminal className="w-4 h-4 text-teal-500" />
-              Log Trace Analyzer
+              {t("logTitle")}
             </h3>
 
             {!selectedItem ? (
               <div className="text-center text-gray-500 italic text-[11px] py-10 font-mono">
-                No manifest loaded
+                {t("noManifest")}
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="font-mono text-xs p-2.5 bg-[#050507] border border-[#1f1f27] rounded">
                   <div className="text-[9px] uppercase text-gray-500 mb-0.5">
-                    Target #{selectedItem.id >= 0 ? selectedItem.id + 1 : "ERR"}:
+                    {t("target")} #{selectedItem.id >= 0 ? selectedItem.id + 1 : "ERR"}:
                   </div>
                   <div className="text-white font-extrabold truncate" title={selectedItem.filename}>
                     {selectedItem.filename}
@@ -228,7 +230,7 @@ export default function BatchDownload({
                       </div>
                     ))
                   ) : (
-                    <div className="text-gray-600 italic text-center py-12">Not started.</div>
+                    <div className="text-gray-600 italic text-center py-12">{t("notStarted")}</div>
                   )}
                 </div>
               </div>
@@ -239,31 +241,31 @@ export default function BatchDownload({
             <div className="flex items-center justify-between border-b border-[#1f1f27]/60 pb-1.5">
               <div className="text-[10px] font-mono text-[#00ffcc] font-bold flex items-center gap-1.5 uppercase tracking-wide">
                 <SlidersHorizontal className="w-3.5 h-3.5 text-purple-400" />
-                NIC Fingerprint Alignment
+                {t("nicAlignment")}
               </div>
               <span className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1 rounded font-mono font-extrabold animate-pulse">
-                ACTIVE
+                {t("activeBadge")}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-y-1.5 gap-x-3 font-mono text-[10px] text-gray-400 pb-1.5 border-b border-[#1f1f27]/40">
-              <div>TLS: <span className="text-teal-300 font-bold">{browserPreset.toUpperCase()}</span></div>
-              <div>OS TCP: <span className="text-white font-bold">{tcpPreset.toUpperCase()}</span></div>
-              <div>IP_TTL: <span className="text-yellow-400 font-bold">{tcpTtl}</span></div>
-              <div>MSS: <span className="text-yellow-400 font-bold">{tcpMss}B</span></div>
+              <div>{t("tls")} <span className="text-teal-300 font-bold">{browserPreset.toUpperCase()}</span></div>
+              <div>{t("osTcp")} <span className="text-white font-bold">{tcpPreset.toUpperCase()}</span></div>
+              <div>{t("ipTtl")} <span className="text-yellow-400 font-bold">{tcpTtl}</span></div>
+              <div>{t("mss")} <span className="text-yellow-400 font-bold">{tcpMss}B</span></div>
             </div>
             <div className="space-y-1 text-[9px] font-mono text-gray-400">
               <div className="flex justify-between">
-                <span>NIC:</span>
-                <span className="text-fuchsia-300 font-bold">eth0 [10-Gbps]</span>
+                <span>{t("nic")}</span>
+                <span className="text-fuchsia-300 font-bold">{t("nicValue")}</span>
               </div>
               <div className="flex justify-between">
-                <span>Window Size:</span>
+                <span>{t("windowSize")}</span>
                 <span className="text-cyan-300 font-bold">{tcpWindowSize}</span>
               </div>
               <div className="flex justify-between">
-                <span>Connection Reuse:</span>
+                <span>{t("connectionReuse")}</span>
                 <span className={connectionReuse ? "text-[#00ffcc] font-bold" : "text-gray-500"}>
-                  {connectionReuse ? "Ready (H2 Multiplexing)" : "Disabled"}
+                  {connectionReuse ? t("reuseReady") : t("reuseDisabled")}
                 </span>
               </div>
             </div>

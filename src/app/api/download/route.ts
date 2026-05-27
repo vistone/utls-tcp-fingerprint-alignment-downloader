@@ -509,90 +509,6 @@ function downloadWithHttp1(
   clientReq.end();
 }
 
-// --- HTTP/3 (QUIC) helpers ---
-
-interface Http3Result {
-  success: boolean;
-  statusCode: number;
-  headers: Record<string, string>;
-  body: Buffer;
-  error?: string;
-}
-
-let http3Failed = false;
-
-async function tryHttp3Download(url: string, timeout: number = 6000): Promise<Http3Result> {
-  if (http3Failed) {
-    return { success: false, statusCode: 0, headers: {}, body: Buffer.alloc(0), error: "H3 previously failed" };
-  }
-  
-  try {
-    const { connectAsync } = await import('@currentspace/http3');
-    
-    const parsed = new URL(url);
-    const host = parsed.hostname;
-    const port = Number(parsed.port) || 443;
-    const path = parsed.pathname + (parsed.search || '');
-    
-    const session = await connectAsync(`${host}:${port}`, {
-      timeout: 6000,
-      runtimeMode: 'portable' as any,
-      fallbackPolicy: 'warn-and-fallback' as any,
-    } as any);
-    
-    try {
-      const stream = session.request({
-        ':method': 'GET',
-        ':path': path,
-        ':scheme': 'https',
-        ':authority': host,
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'accept': '*/*',
-        'accept-encoding': 'identity',
-      }, { endStream: true });
-      
-      const result = await new Promise<Http3Result>((resolve) => {
-        const chunks: Buffer[] = [];
-        const headers: Record<string, string> = {};
-        let statusCode = 0;
-        
-        const timer = setTimeout(() => {
-          resolve({ success: false, statusCode: 0, headers: {}, body: Buffer.concat(chunks), error: "H3 request timeout" });
-        }, timeout);
-        
-        stream.on('headers', (h: any) => {
-          statusCode = parseInt(h[':status'] || '0');
-          for (const [k, v] of Object.entries(h)) {
-            if (!k.startsWith(':')) headers[k] = String(v);
-          }
-        });
-        
-        stream.on('data', (chunk: Buffer) => {
-          chunks.push(chunk);
-        });
-        
-        stream.on('end', () => {
-          clearTimeout(timer);
-          resolve({ success: true, statusCode, headers, body: Buffer.concat(chunks) });
-        });
-        
-        stream.on('error', (err: Error) => {
-          clearTimeout(timer);
-          resolve({ success: false, statusCode, headers, body: Buffer.concat(chunks), error: err.message });
-        });
-      });
-      
-      return result;
-    } finally {
-      try { session.close(); } catch (_) {}
-    }
-  } catch (err: any) {
-    console.error("[H3] init failed:", err.message);
-    http3Failed = true;
-    return { success: false, statusCode: 0, headers: {}, body: Buffer.alloc(0), error: err.message };
-  }
-}
-
 function detectH3Support(headers: Record<string, string>): string | null {
   const altSvc = headers["alt-svc"] || "";
   const h3Match = altSvc.match(/h3=":(\d+)"/);
@@ -645,7 +561,6 @@ export async function POST(request: NextRequest): Promise<Response> {
     dnsCacheEnabled = true,
     dnsHosts = "",
     lbStrategy = "fastest",
-    preferHttp3 = false,
   } = body;
 
   if (!targetUrl) {
@@ -1102,23 +1017,6 @@ export async function POST(request: NextRequest): Promise<Response> {
             downloadWithHttp1(requestOptions, isHttps, sendLog, effectiveBrowserPreset, effectiveTcpTtl, effectiveTcpMss, closeStream);
           }
         };
-
-        // --- HTTP/3 attempt (fast fallback) ---
-        if (preferHttp3 && isHttps && !useProxy) {
-          try {
-            const { connectAsync } = await import('@currentspace/http3');
-            const h3Result = await tryHttp3Download(targetUrl);
-            if (h3Result.success && h3Result.statusCode > 0 && h3Result.statusCode < 400) {
-              sendLog("progress", "", { progress: 100, speed: 0, received: h3Result.body.length, total: h3Result.body.length });
-              sendLog("log", `[H3-COMPLETE] HTTP/3 QUIC: Status ${h3Result.statusCode}, Size ${(h3Result.body.length / 1024).toFixed(1)} KB`);
-              sendLog("state", "", { state: "completed", progress: 100 });
-              closeStream();
-              return;
-            }
-          } catch (_) {
-            // H3 not available, silently fall back
-          }
-        }
 
         // --- Fast dispatch via Node.js fetch (undici) ---
         if (isHttps && !hasProxy) {

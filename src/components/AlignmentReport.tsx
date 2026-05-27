@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ShieldCheck, ShieldAlert, AlertTriangle } from "lucide-react";
 
 interface AlignmentReportProps {
@@ -9,28 +10,29 @@ interface AlignmentReportProps {
 }
 
 export default function AlignmentReport({ score, warnings, tcpTtl }: AlignmentReportProps) {
+  const t = useTranslations("AlignmentReport");
   return (
     <div className="bg-[#111116] border border-[#2d2d35] p-5 rounded flex flex-col relative overflow-hidden shadow-2xl">
       <div className="flex justify-between items-start gap-4">
         <div>
           <h3 className="text-xs font-mono text-gray-500 uppercase tracking-widest mb-1 font-bold">
-            Fingerprint Alignment Score
+            {t("scoreTitle")}
           </h3>
           <div className="text-3xl font-extrabold text-white font-mono flex items-baseline gap-1">
             {score}
-            <span className="text-xs font-normal text-gray-500">/ 100 PTS</span>
+            <span className="text-xs font-normal text-gray-500">{t("pts")}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {score >= 75 ? (
             <div className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded flex items-center gap-1.5 text-xs font-mono font-bold">
               <ShieldCheck className="w-4 h-4" />
-              Aligned (Bypass Ready)
+              {t("aligned")}
             </div>
           ) : (
             <div className="bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1.5 rounded flex items-center gap-1.5 text-xs font-mono font-bold animate-pulse">
               <ShieldAlert className="w-4 h-4" />
-              High Risk (403 Detection)
+              {t("highRisk")}
             </div>
           )}
         </div>
@@ -53,7 +55,7 @@ export default function AlignmentReport({ score, warnings, tcpTtl }: AlignmentRe
             <div className="text-emerald-400 bg-emerald-500/5 border border-emerald-500/20 p-3 rounded flex items-center gap-2">
               <ShieldCheck className="w-4 h-4" />
               <span>
-                Perfect alignment! TCP TTL [{tcpTtl}], MSS, and browser TLS profile show 100% natural fingerprint matching.
+                {t("perfectAlignment", { ttl: tcpTtl })}
               </span>
             </div>
           ) : (

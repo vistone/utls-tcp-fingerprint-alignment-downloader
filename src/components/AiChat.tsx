@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useRef, useEffect } from "react";
 import { Sparkles, Terminal, Award, RefreshCw, Send, ChevronRight } from "lucide-react";
 
@@ -19,12 +20,6 @@ interface AiChatProps {
   tcpTtl: number;
 }
 
-const QUICK_PROMPTS = [
-  "Why does my scraper get 403 blocked by Cloudflare even after changing User-Agent?",
-  "Explain uTLS fingerprint bypass. How to configure JA3/JA4 in Node.js to simulate Chrome?",
-  "Provide a complete TypeScript HTTPS client script that bypasses 403 with uTLS fingerprint alignment.",
-];
-
 export default function AiChat({
   chatHistory,
   isAiLoading,
@@ -35,6 +30,12 @@ export default function AiChat({
   tcpPreset,
   tcpTtl,
 }: AiChatProps) {
+  const t = useTranslations("AiChat");
+  const QUICK_PROMPTS = [
+    t("quickPrompts.0"),
+    t("quickPrompts.1"),
+    t("quickPrompts.2"),
+  ];
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -49,11 +50,11 @@ export default function AiChat({
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-amber-400" />
           <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-white">
-            WAF Bypass Expert
+            {t("expertTitle")}
           </h3>
         </div>
         <p className="text-xs text-gray-400 leading-relaxed">
-          Current config: UA Preset: {browserPreset.toUpperCase()}, TCP Stack: {tcpPreset.toUpperCase()}, TTL: {tcpTtl}
+          {t("currentConfig", { browser: browserPreset.toUpperCase(), os: tcpPreset.toUpperCase(), ttl: tcpTtl })}
         </p>
 
         <div className="space-y-2 text-left font-mono">
@@ -79,9 +80,9 @@ export default function AiChat({
         <div className="bg-[#0a0a0c] border-b border-[#1f1f27] p-3 flex justify-between items-center font-mono">
           <div className="flex items-center gap-2 text-xs">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
-            <span className="text-gray-300 font-bold uppercase tracking-wider">AI ARCHITECT // ONLINE</span>
+            <span className="text-gray-300 font-bold uppercase tracking-wider">{t("aiArchitect")}</span>
           </div>
-          <span className="text-[10px] text-gray-500">GEMINI DEEP ARCHITECTURE</span>
+          <span className="text-[10px] text-gray-500">{t("geminiLabel")}</span>
         </div>
 
         <div className="flex-grow p-4 overflow-y-auto space-y-4 font-normal text-xs text-gray-300 leading-relaxed">
@@ -114,7 +115,7 @@ export default function AiChat({
           {isAiLoading && (
             <div className="flex items-center gap-2 text-amber-400 font-mono text-xs italic">
               <RefreshCw className="w-4 h-4 animate-spin text-amber-500" />
-              Analyzing fingerprint alignment (TTL: {tcpTtl}), JA4, grease traits...
+              {t("analyzing", { ttl: tcpTtl })}
             </div>
           )}
           <div ref={chatEndRef} />
@@ -131,7 +132,7 @@ export default function AiChat({
             type="text"
             value={chatMessage}
             onChange={(e) => setChatMessage(e.target.value)}
-            placeholder="Ask about WAF bypass, uTLS alignment, TCP fingerprint tuning..."
+            placeholder={t("inputPlaceholder")}
             className="flex-1 bg-[#111116] border border-[#2d2d35] rounded px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#00ffcc]"
           />
           <button
@@ -139,7 +140,7 @@ export default function AiChat({
             disabled={!chatMessage.trim() || isAiLoading}
             className="bg-amber-500/15 text-amber-400 border border-amber-500/40 hover:bg-amber-500/25 px-5 rounded text-xs font-mono transition flex items-center gap-2 font-bold disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
           >
-            <span>SEND</span>
+            <span>{t("send")}</span>
             <Send className="w-3.5 h-3.5" />
           </button>
         </form>

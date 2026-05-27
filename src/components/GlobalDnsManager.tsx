@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRef, useEffect } from "react";
 import { SlidersHorizontal, Play, RefreshCw, Network } from "lucide-react";
 
@@ -41,6 +42,7 @@ export default function GlobalDnsManager({
   handleRunBatchDns,
   handleDeleteCacheDomain,
 }: GlobalDnsManagerProps) {
+  const t = useTranslations("GlobalDnsManager");
   const logRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -54,12 +56,12 @@ export default function GlobalDnsManager({
       <div className="lg:col-span-5 space-y-4 font-mono text-xs">
         <div className="bg-[#050507] border border-[#2d2d35] p-4 rounded-lg space-y-4">
           <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-gray-800 pb-1.5 flex items-center gap-2">
-            <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-400" /> Batch Settings
+            <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-400" /> {t("batchSettings")}
           </h3>
 
           <div className="space-y-3">
             <div>
-              <label className="text-[10px] text-gray-400 block mb-1">Domains (comma separated):</label>
+              <label className="text-[10px] text-gray-400 block mb-1">{t("domainsLabel")}</label>
               <textarea
                 rows={3}
                 value={batchDomainsInput}
