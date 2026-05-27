@@ -206,7 +206,7 @@ export default function GlobalDnsManager({
             <div className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[140px] overflow-y-auto">
                 {globalDnsStatus.cachedDomains.map((entry) => (
-                  <button
+                  <div
                     key={entry.domain}
                     onClick={() => setSelectedDomain(selectedDomain === entry.domain ? null : entry.domain)}
                     className={`text-left bg-[#111116] border p-2.5 rounded flex flex-col justify-between transition cursor-pointer ${
@@ -230,7 +230,7 @@ export default function GlobalDnsManager({
                       <span>IPv4: <strong className="text-cyan-400">{entry.ipv4Count}</strong></span>
                       <span>IPv6: <strong className="text-pink-400">{entry.ipv6Count}</strong></span>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
 
