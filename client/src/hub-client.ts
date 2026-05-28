@@ -118,35 +118,31 @@ export function submitDownload(
     const client = createClient(hubAddress);
     const deadline = new Date(Date.now() + timeoutMs);
 
-    client.SubmitDownload({
+    const call = client.SubmitDownload({
       target_url: targetUrl,
       browser_preset: 'chrome',
       user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36',
       cdn_type: 'cloudflare',
       storage_device_id: storageDeviceId || '',
-    }, { deadline }, (err: any, call: any) => {
-      if (err) {
-        onEvent?.('error', { message: err.details || err.message });
-        resolve();
-        return;
+    }, { deadline });
+
+    let settled = false;
+    const done = () => { if (!settled) { settled = true; client.close(); resolve(); } };
+
+    call.on('data', (event: any) => {
+      if (event?.progress) onEvent?.('progress', event.progress);
+      else if (event?.log) onEvent?.('log', event.log);
+      else if (event?.state) {
+        onEvent?.('state', event.state);
+        if (event.state.state === 'completed' || event.state.state === 'failed') done();
       }
-      call.on('data', (event: any) => {
-        if (event.progress) onEvent?.('progress', event.progress);
-        else if (event.log) onEvent?.('log', event.log);
-        else if (event.state) {
-          onEvent?.('state', event.state);
-          if (event.state.state === 'completed' || event.state.state === 'failed') {
-            client.close();
-            resolve();
-          }
-        }
-      });
-      call.on('error', (e: any) => {
-        onEvent?.('error', { message: e.details || e.message });
-        client.close();
-        resolve();
-      });
-      call.on('end', () => { client.close(); resolve(); });
     });
+
+    call.on('error', (e: any) => {
+      onEvent?.('error', { message: e.details || e.message });
+      done();
+    });
+
+    call.on('end', done);
   });
 }

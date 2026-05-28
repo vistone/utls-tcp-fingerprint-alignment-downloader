@@ -193,45 +193,44 @@ function getDeviceDetailHandler(call: grpc.ServerUnaryCall<any, any>, callback: 
 
 // --- Download Task ---
 
-function submitDownloadHandler(call: grpc.ServerUnaryCall<any, any>, responseStream: grpc.ServerWritableStream<any, any>) {
+function submitDownloadHandler(call: any) {
   const req = call.request;
 
-  const sendEvent = (event: any) => {
-    try { responseStream.write(event); } catch (_) {}
+  const sendEvent = (type: string, data: any) => {
+    try { call.write({ [type]: data }); } catch (_) {}
   };
   const safeClose = () => {
-    try { responseStream.end(); } catch (_) {}
+    try { call.end(); } catch (_) {}
   };
 
   if (!req.target_url) {
-    sendEvent({ event: { log: { level: 'error', message: 'Missing target_url' } } });
-    sendEvent({ event: { state: { state: 'failed', progress: 0 } } });
+    sendEvent('log', { level: 'error', message: 'Missing target_url' });
+    sendEvent('state', { state: 'failed', progress: 0 });
     safeClose();
     return;
   }
 
   const targetStorageId = req.storage_device_id;
   if (targetStorageId && !devices.has(targetStorageId)) {
-    sendEvent({ event: { log: { level: 'error', message: `Storage ${targetStorageId} not registered` } } });
-    sendEvent({ event: { state: { state: 'failed', progress: 0 } } });
+    sendEvent('log', { level: 'error', message: `Storage ${targetStorageId} not registered` });
+    sendEvent('state', { state: 'failed', progress: 0 });
     safeClose();
     return;
   }
 
-  sendEvent({ event: { state: { state: 'handshake', progress: 0 } } });
-  sendEvent({ event: { log: { level: 'log', message: `[HUB] Task received: ${req.target_url}` } } });
+  sendEvent('state', { state: 'handshake', progress: 0 });
+  sendEvent('log', { level: 'log', message: `[HUB] Task received: ${req.target_url}` });
 
   if (targetStorageId) {
     const storage = devices.get(targetStorageId)!;
-    sendEvent({ event: { log: { level: 'log', message: `[HUB] Target storage: ${storage.info.name} (${storage.info.ip})` } } });
+    sendEvent('log', { level: 'log', message: `[HUB] Target storage: ${storage.info.name} (${storage.info.ip})` });
   }
 
   const controller = new AbortController();
-  const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
   (async () => {
     try {
-      sendEvent({ event: { log: { level: 'log', message: `[HUB] Fetching: ${req.target_url}` } } });
+      sendEvent('log', { level: 'log', message: `[HUB] Fetching: ${req.target_url}` });
       const fetchStart = Date.now();
 
       const response = await fetch(req.target_url, {
@@ -248,21 +247,21 @@ function submitDownloadHandler(call: grpc.ServerUnaryCall<any, any>, responseStr
       const contentType = response.headers.get('content-type') || 'unknown';
       const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
 
-      sendEvent({ event: { log: { level: 'log', message: `[HUB] HTTP status=${statusCode} | Content-Type=${contentType}` } } });
+      sendEvent('log', { level: 'log', message: `[HUB] HTTP status=${statusCode} | Content-Type=${contentType}` });
 
       if (statusCode >= 400) {
-        sendEvent({ event: { log: { level: 'error', message: `[HUB] Server returned ${statusCode}` } } });
-        sendEvent({ event: { state: { state: 'failed', progress: 0 } } });
+        sendEvent('log', { level: 'error', message: `[HUB] Server returned ${statusCode}` });
+        sendEvent('state', { state: 'failed', progress: 0 });
         safeClose();
         return;
       }
 
-      sendEvent({ event: { state: { state: 'downloading', progress: 0 } } });
+      sendEvent('state', { state: 'downloading', progress: 0 });
 
       const reader = response.body?.getReader();
       if (!reader) {
-        sendEvent({ event: { log: { level: 'error', message: '[HUB] No response body' } } });
-        sendEvent({ event: { state: { state: 'failed', progress: 0 } } });
+        sendEvent('log', { level: 'error', message: '[HUB] No response body' });
+        sendEvent('state', { state: 'failed', progress: 0 });
         safeClose();
         return;
       }
@@ -283,7 +282,7 @@ function submitDownloadHandler(call: grpc.ServerUnaryCall<any, any>, responseStr
           const duration = (now - fetchStart) / 1000 || 0.01;
           const speed = receivedSize / (1024 * 1024) / duration;
           const progress = contentLength > 0 ? Math.min((receivedSize / contentLength) * 100, 100) : 0;
-          sendEvent({ event: { progress: { progress, speed: parseFloat(speed.toFixed(2)), received: receivedSize, total: contentLength } } });
+          sendEvent('progress', { progress, speed: parseFloat(speed.toFixed(2)), received: receivedSize, total: contentLength });
         }
       }
 
@@ -292,7 +291,7 @@ function submitDownloadHandler(call: grpc.ServerUnaryCall<any, any>, responseStr
         ? `${(receivedSize / (1024 * 1024)).toFixed(2)} MB`
         : `${(receivedSize / 1024).toFixed(2)} KB`;
 
-      sendEvent({ event: { log: { level: 'log', message: `[HUB] Download complete: ${finalSize} in ${finalDuration.toFixed(2)}s` } } });
+      sendEvent('log', { level: 'log', message: `[HUB] Download complete: ${finalSize} in ${finalDuration.toFixed(2)}s` });
 
       // Save locally
       const storageDir = path.join(process.cwd(), 'storage');
@@ -301,14 +300,14 @@ function submitDownloadHandler(call: grpc.ServerUnaryCall<any, any>, responseStr
       const localPath = path.join(storageDir, filename);
       const fileData = Buffer.concat(chunks);
       fs.writeFileSync(localPath, fileData);
-      sendEvent({ event: { log: { level: 'log', message: `[HUB] Saved: ${localPath}` } } });
+      sendEvent('log', { level: 'log', message: `[HUB] Saved: ${localPath}` });
 
       // Push to registered storage
       let storageResult = 'local_only';
       if (targetStorageId) {
         const storage = devices.get(targetStorageId);
         if (storage) {
-          sendEvent({ event: { log: { level: 'log', message: `[HUB] Pushing to ${storage.info.name} (${storage.info.ip})...` } } });
+          sendEvent('log', { level: 'log', message: `[HUB] Pushing to ${storage.info.name} (${storage.info.ip})...` });
           try {
             const pushOk = await pushToStorage(storage.info.ip + ':50051', filename, fileData, contentType, {
               source_url: req.target_url,
@@ -317,15 +316,14 @@ function submitDownloadHandler(call: grpc.ServerUnaryCall<any, any>, responseStr
               task_id: taskId,
             });
             storageResult = pushOk ? 'pushed' : 'push_failed';
-            sendEvent({ event: { log: { level: pushOk ? 'log' : 'error', message: `[HUB] Storage push ${pushOk ? 'success' : 'failed'}` } } });
+            sendEvent('log', { level: pushOk ? 'log' : 'error', message: `[HUB] Storage push ${pushOk ? 'success' : 'failed'}` });
           } catch (gErr: any) {
             storageResult = 'push_error';
-            sendEvent({ event: { log: { level: 'error', message: `[HUB] Push error: ${gErr.message}` } } });
+            sendEvent('log', { level: 'error', message: `[HUB] Push error: ${gErr.message}` });
           }
         }
       }
 
-      // Record task in storage device history
       if (targetStorageId) {
         const storage = devices.get(targetStorageId);
         if (storage) {
@@ -336,7 +334,7 @@ function submitDownloadHandler(call: grpc.ServerUnaryCall<any, any>, responseStr
         }
       }
 
-      sendEvent({ event: { state: { state: 'completed', progress: 100 } } });
+      sendEvent('state', { state: 'completed', progress: 100 });
 
     } catch (err: any) {
       sendEvent({ event: { log: { level: 'error', message: `[HUB] Error: ${err.message}` } } });
@@ -416,7 +414,7 @@ export function startGrpcServer(port: number = 50051): Promise<void> {
       UnregisterDevice: unregisterDeviceHandler,
       ListDevices: listDevicesHandler,
       GetDeviceDetail: getDeviceDetailHandler,
-      SubmitDownload: submitDownloadHandler as any,
+      SubmitDownload: submitDownloadHandler,
       Ping: pingHandler,
     });
 
