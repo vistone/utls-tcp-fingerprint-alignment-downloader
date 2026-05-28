@@ -250,7 +250,7 @@ export default function FingerprintConfig({
       <div className="bg-[#111116] border border-[#2d2d35] p-5 rounded relative overflow-hidden shadow-xl">
         <h2 className="text-xs font-bold uppercase tracking-wider text-white font-mono flex items-center gap-2 mb-4">
           <span className="w-4 h-4 text-orange-400">⬡</span>
-          {t("sectionGrpcTitle", { defaultMessage: "gRPC Distributed Storage" })}
+          {t("sectionGrpcTitle")}
         </h2>
         <div className="space-y-3 font-mono text-xs">
           <div className="space-y-1.5 p-3 bg-[#050507] border border-[#2d2d35]/60 rounded">
@@ -283,7 +283,7 @@ export default function FingerprintConfig({
                   placeholder="192.168.1.10:50051"
                   className="w-full bg-[#111116] border border-[#2d2d35] rounded px-2.5 py-1.5 text-orange-300 focus:outline-none focus:border-orange-500 text-xs font-mono"
                 />
-                <p className="text-[9px] text-gray-600">{t("grpcHint", { defaultMessage: "Download完成后自动通过 gRPC 推送文件" })}</p>
+                <p className="text-[9px] text-gray-600">{t("grpcHint")}</p>
               </div>
             )}
           </div>
