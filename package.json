@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.5",
   "scripts": {
-    "dev": "npx tsx scripts/start-hub.ts & next dev",
+    "dev": "npx tsx scripts/start-hub.ts & npx tsx server/src/storage-server.ts --hub localhost:50051 --name \"Storage-Server\" --port 50052 & next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint && tsc --noEmit"

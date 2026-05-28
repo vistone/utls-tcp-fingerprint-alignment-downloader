@@ -310,7 +310,7 @@ function submitDownloadHandler(call: any) {
         if (storage) {
           sendEvent('log', { level: 'log', message: `[HUB] Pushing to ${storage.info.name} (${storage.info.ip})...` });
           try {
-            const pushOk = await pushToStorage(storage.info.ip + ':50051', filename, fileData, contentType, {
+            const pushOk = await pushToStorage(storage.info.ip, filename, fileData, contentType, {
               source_url: req.target_url,
               browser_preset: req.browser_preset || '',
               client_id: req.client_id || '',
