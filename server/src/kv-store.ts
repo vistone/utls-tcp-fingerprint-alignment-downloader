@@ -49,7 +49,10 @@ function loadIndex(): void {
 }
 
 function saveIndex(): void {
-  fs.writeFileSync(INDEX_PATH, JSON.stringify(index, null, 2), 'utf-8');
+  // Atomic write: write to temp file then rename
+  const tmpPath = INDEX_PATH + '.tmp';
+  fs.writeFileSync(tmpPath, JSON.stringify(index, null, 2), 'utf-8');
+  fs.renameSync(tmpPath, INDEX_PATH);
 }
 
 loadIndex();

@@ -5,7 +5,6 @@ export function createCorsHeaders(): Record<string, string> {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, PATCH, DELETE",
     "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Authorization",
-    "Access-Control-Allow-Credentials": "true",
   };
 }
 

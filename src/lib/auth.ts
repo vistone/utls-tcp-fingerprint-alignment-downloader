@@ -1,8 +1,12 @@
 const API_SECRET_KEY = process.env.API_SECRET_KEY || "";
 
+if (!API_SECRET_KEY) {
+  console.warn("[AUTH] Warning: API_SECRET_KEY is not set. All endpoints are unprotected.");
+}
+
 export function validateApiKey(request: Request): boolean {
   if (!API_SECRET_KEY) {
-    return true; // No key configured = no auth required
+    return true;
   }
 
   const authHeader = request.headers.get("authorization");

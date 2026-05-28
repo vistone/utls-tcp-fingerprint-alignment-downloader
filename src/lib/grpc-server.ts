@@ -1,10 +1,13 @@
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
+import * as crypto from 'node:crypto';
 import path from 'path';
 import fs from 'fs';
+import { isPrivateOrReservedIp } from './ssrf';
 
 const PROTO_PATH = path.join(process.cwd(), 'src/lib/proto/download_hub.proto');
 const HEARTBEAT_TIMEOUT = 30000; // 30s without heartbeat = offline
+const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB max download size
 
 let server: grpc.Server | null = null;
 
@@ -20,7 +23,6 @@ interface Device {
 }
 
 const devices = new Map<string, Device>();
-let deviceIdCounter = 0;
 
 function detectDeviceIp(call: grpc.ServerUnaryCall<any, any>): string {
   const peer = call.getPeer();
@@ -36,7 +38,7 @@ function registerDeviceHandler(type: 'task_client' | 'storage_server') {
       return;
     }
 
-    const deviceId = `${type === 'task_client' ? 'client' : 'storage'}-${++deviceIdCounter}`;
+    const deviceId = `${type === 'task_client' ? 'client' : 'storage'}-${crypto.randomBytes(4).toString('hex')}`;
     const ip = detectDeviceIp(call);
 
     devices.set(deviceId, {
@@ -197,10 +199,10 @@ function submitDownloadHandler(call: any) {
   const req = call.request;
 
   const sendEvent = (type: string, data: any) => {
-    try { call.write({ [type]: data }); } catch (_) {}
+    try { call.write({ [type]: data }); } catch (e: any) { console.error('[HUB] sendEvent error:', e.message); }
   };
   const safeClose = () => {
-    try { call.end(); } catch (_) {}
+    try { call.end(); } catch (e: any) { console.error('[HUB] safeClose error:', e.message); }
   };
 
   if (!req.target_url) {
@@ -227,10 +229,32 @@ function submitDownloadHandler(call: any) {
   }
 
   const controller = new AbortController();
-  const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const taskId = `task-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 
   (async () => {
     try {
+      // SSRF protection: validate target URL
+      const parsedUrl = new URL(req.target_url);
+      const targetHostname = parsedUrl.hostname;
+      
+      // Resolve hostname and validate IPs against private ranges
+      const { default: dns } = await import('dns');
+      const dnsPromise = new Promise<string[]>((resolve) => {
+        dns.resolve4(targetHostname, (err4, addrs4) => {
+          dns.resolve6(targetHostname, (err6, addrs6) => {
+            resolve([...(addrs4 || []), ...(addrs6 || [])]);
+          });
+        });
+      });
+      const resolvedIps = await dnsPromise;
+      const blockedIps = resolvedIps.filter(isPrivateOrReservedIp);
+      if (blockedIps.length > 0) {
+        sendEvent('log', { level: 'error', message: `[HUB] SSRF blocked: ${targetHostname} resolves to private IP ${blockedIps.join(', ')}` });
+        sendEvent('state', { state: 'failed', progress: 0 });
+        safeClose();
+        return;
+      }
+
       sendEvent('log', { level: 'log', message: `[HUB] Fetching: ${req.target_url}` });
       const fetchStart = Date.now();
 
@@ -275,6 +299,15 @@ function submitDownloadHandler(call: any) {
         const { done, value } = await reader.read();
         if (done) break;
         receivedSize += value?.length || 0;
+        
+        // File size limit to prevent memory exhaustion
+        if (receivedSize > MAX_FILE_SIZE) {
+          sendEvent('log', { level: 'error', message: `[HUB] File too large (${(receivedSize / 1048576).toFixed(1)} MB exceeds ${MAX_FILE_SIZE / 1048576} MB limit)` });
+          sendEvent('state', { state: 'failed', progress: 0 });
+          safeClose();
+          return;
+        }
+        
         if (value) chunks.push(Buffer.from(value));
 
         const now = Date.now();
@@ -294,10 +327,11 @@ function submitDownloadHandler(call: any) {
 
       sendEvent('log', { level: 'log', message: `[HUB] Download complete: ${finalSize} in ${finalDuration.toFixed(2)}s` });
 
-      // Save locally
+      // Save locally with sanitized filename
       const storageDir = path.join(process.cwd(), 'storage');
       if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
-      const filename = new URL(req.target_url).pathname.split('/').pop() || 'download';
+      const rawFilename = new URL(req.target_url).pathname.split('/').pop() || 'download';
+      const filename = rawFilename.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 200) || 'download';
       const localPath = path.join(storageDir, filename);
       const fileData = Buffer.concat(chunks);
       fs.writeFileSync(localPath, fileData);

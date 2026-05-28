@@ -47,16 +47,30 @@ function log(color: string, tag: string, msg: string) {
   console.log(`${C.dim}[${ts}]${C.reset} ${color}[${tag}]${C.reset} ${msg}`);
 }
 
-// ===== Load Proto =====
+// ===== Load Proto (cached) =====
 const PROTO_PATH = path.join(__dirname, 'proto/file_transfer.proto');
 const HUB_PROTO_PATH = path.join(path.dirname(__dirname), '..', 'src/lib/proto/download_hub.proto');
 
+let cachedFTProto: any = null;
 function loadFTProto() {
+  if (cachedFTProto) return cachedFTProto;
   const pkgDef = protoLoader.loadSync(PROTO_PATH, {
     keepCase: true, longs: String, enums: String, defaults: true, oneofs: true,
   });
   const proto = grpc.loadPackageDefinition(pkgDef) as any;
-  return proto.filetransfer.FileTransfer;
+  cachedFTProto = proto.filetransfer.FileTransfer;
+  return cachedFTProto;
+}
+
+// Cache Hub proto for heartbeat
+let cachedHubProto: any = null;
+function loadHubProto() {
+  if (cachedHubProto) return cachedHubProto;
+  const pkgDef = protoLoader.loadSync(HUB_PROTO_PATH, {
+    keepCase: true, longs: String, enums: String, defaults: true, oneofs: true,
+  });
+  cachedHubProto = grpc.loadPackageDefinition(pkgDef) as any;
+  return cachedHubProto;
 }
 
 // ===== PushFile Handler =====
@@ -102,11 +116,8 @@ function pingHandler(call: grpc.ServerUnaryCall<any, any>, callback: grpc.sendUn
 // ===== Hub Registration =====
 async function registerWithHub(): Promise<string | null> {
   return new Promise((resolve) => {
-    const pkgDef = protoLoader.loadSync(HUB_PROTO_PATH, {
-      keepCase: true, longs: String, enums: String, defaults: true, oneofs: true,
-    });
-    const proto = grpc.loadPackageDefinition(pkgDef) as any;
-    const client = new proto.downloadhub.DownloadHub(HUB_ADDRESS, grpc.credentials.createInsecure());
+    const HubProto = loadHubProto();
+    const client = new HubProto.downloadhub.DownloadHub(HUB_ADDRESS, grpc.credentials.createInsecure());
 
     client.RegisterStorageServer({
       info: {
@@ -136,13 +147,10 @@ async function registerWithHub(): Promise<string | null> {
 
 // ===== Heartbeat Loop =====
 function startHeartbeat(deviceId: string) {
+  const HubProto = loadHubProto();
   const iv = setInterval(async () => {
     const stats = getStats();
-    const pkgDef = protoLoader.loadSync(HUB_PROTO_PATH, {
-      keepCase: true, longs: String, enums: String, defaults: true, oneofs: true,
-    });
-    const proto = grpc.loadPackageDefinition(pkgDef) as any;
-    const client = new proto.downloadhub.DownloadHub(HUB_ADDRESS, grpc.credentials.createInsecure());
+    const client = new HubProto.downloadhub.DownloadHub(HUB_ADDRESS, grpc.credentials.createInsecure());
 
     client.Heartbeat({
       device_id: deviceId,

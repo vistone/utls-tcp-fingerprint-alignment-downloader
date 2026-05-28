@@ -828,6 +828,16 @@ export async function POST(request: NextRequest): Promise<Response> {
               try {
                 const resv = await resolveDnsCustom(host, upstreamList, dnsTimeout, dnsParallel);
                 resolvedIps = resv.addresses;
+                
+                // SSRF re-check: validate IPs resolved by custom DNS
+                const blockedIps = resolvedIps.filter(isPrivateOrReservedIp);
+                if (blockedIps.length > 0) {
+                  sendLog("error", `[SECURITY] Custom DNS resolved to private IP: ${blockedIps.join(", ")}`);
+                  sendLog("state", "", { state: "failed" });
+                  closeStream();
+                  return;
+                }
+                
                 sendLog(
                   "log",
                   `[CUSTOM-DNS] Resolved from [${resv.serverUsed}]: [${resolvedIps.join(", ")}] (${resv.ms}ms)`
