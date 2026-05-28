@@ -31,7 +31,49 @@
       "storedAt": 1779959805333,
       "metadata": {},
       "checksum": "424d994d6ad6c4297a47f4c0ac4927dc6cb655091f4f4ff81ce2218b9d2235b3"
+    },
+    "1779960527995-ab234f6a": {
+      "id": "1779960527995-ab234f6a",
+      "filename": "earthplugin_web.wasm",
+      "mimeType": "application/wasm",
+      "size": 21838920,
+      "storedAt": 1779960528088,
+      "metadata": {
+        "source_url": "https://earth.google.com/static/multi-threaded/versions/20260507_1200_RC02/assets/earthplugin_web_wasm/earthplugin_web.wasm",
+        "browser_preset": "chrome",
+        "client_id": "",
+        "task_id": "task-1779960488305-2ryv"
+      },
+      "checksum": "1c41fed969f4ee08376a7b5a942292210b79065af051fb6764ddc49eb377eb09"
+    },
+    "1779960594428-629a48a2": {
+      "id": "1779960594428-629a48a2",
+      "filename": "googlelogo_color_272x92dp.png",
+      "mimeType": "image/png",
+      "size": 5969,
+      "storedAt": 1779960594431,
+      "metadata": {
+        "source_url": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
+        "browser_preset": "",
+        "client_id": "",
+        "task_id": "task-1779960593903-jmh9"
+      },
+      "checksum": "5776cd87617eacec3bc00ebcf530d1924026033eda852f706c1a675a98915826"
+    },
+    "1779960758580-439fc9b9": {
+      "id": "1779960758580-439fc9b9",
+      "filename": "earthplugin_web.wasm",
+      "mimeType": "application/wasm",
+      "size": 21838920,
+      "storedAt": 1779960758670,
+      "metadata": {
+        "source_url": "https://earth.google.com/static/multi-threaded/versions/20260507_1200_RC02/assets/earthplugin_web_wasm/earthplugin_web.wasm",
+        "browser_preset": "chrome",
+        "client_id": "",
+        "task_id": "task-1779960755986-xqmo"
+      },
+      "checksum": "1c41fed969f4ee08376a7b5a942292210b79065af051fb6764ddc49eb377eb09"
     }
   },
-  "totalBytes": 20977493
+  "totalBytes": 64661302
 }
