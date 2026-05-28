@@ -4,121 +4,197 @@ import path from 'path';
 import fs from 'fs';
 
 const PROTO_PATH = path.join(process.cwd(), 'src/lib/proto/download_hub.proto');
+const HEARTBEAT_TIMEOUT = 30000; // 30s without heartbeat = offline
 
 let server: grpc.Server | null = null;
-let clientIdCounter = 0;
-let storageIdCounter = 0;
 
-// --- Client (Task Sender) Registry ---
-interface RegisteredClient {
-  clientId: string;
-  name: string;
+// --- Device Registry ---
+interface Device {
+  id: string;
+  type: 'task_client' | 'storage_server';
+  info: { name: string; ip: string; os: string; hostname: string; version: string; capabilities: Record<string, string> };
+  status: { state: string; message: string; uptime: number; activeTasks: number; maxTasks: number; cpuUsage: number; memoryUsage: number; diskUsage: number; extra: Record<string, string> };
   registeredAt: number;
-  lastActive: number;
-  tasksSubmitted: number;
+  lastHeartbeat: number;
+  taskHistory: Array<{ taskId: string; targetUrl: string; status: string; startedAt: number; completedAt: number; storageResult: string }>;
 }
 
-const clients = new Map<string, RegisteredClient>();
+const devices = new Map<string, Device>();
+let deviceIdCounter = 0;
 
-// --- Storage Server Registry ---
-interface RegisteredStorage {
-  serverId: string;
-  name: string;
-  address: string;
-  registeredAt: number;
+function detectDeviceIp(call: grpc.ServerUnaryCall<any, any>): string {
+  const peer = call.getPeer();
+  const match = peer?.match(/ipv4:(\d+\.\d+\.\d+\.\d+)/);
+  return match ? match[1] : peer || 'unknown';
 }
 
-const storageServers = new Map<string, RegisteredStorage>();
+function registerDeviceHandler(type: 'task_client' | 'storage_server') {
+  return (call: grpc.ServerUnaryCall<any, any>, callback: grpc.sendUnaryData<any>) => {
+    const { info, secret } = call.request;
+    if (!info?.device_name) {
+      callback(null, { success: false, message: 'Missing device_name' });
+      return;
+    }
 
-function loadProto(): grpc.ServiceClientConstructor {
-  const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
-    keepCase: true, longs: String, enums: String, defaults: true, oneofs: true,
-  });
-  const proto = grpc.loadPackageDefinition(packageDefinition) as any;
-  return proto.downloadhub.DownloadHub;
+    const deviceId = `${type === 'task_client' ? 'client' : 'storage'}-${++deviceIdCounter}`;
+    const ip = detectDeviceIp(call);
+
+    devices.set(deviceId, {
+      id: deviceId,
+      type,
+      info: {
+        name: info.device_name,
+        ip: info.ip_address || ip,
+        os: info.os || 'unknown',
+        hostname: info.hostname || 'unknown',
+        version: info.version || '0.0.0',
+        capabilities: info.capabilities || {},
+      },
+      status: {
+        state: 'online',
+        message: 'Registered',
+        uptime: 0,
+        activeTasks: 0,
+        maxTasks: 0,
+        cpuUsage: 0,
+        memoryUsage: 0,
+        diskUsage: 0,
+        extra: {},
+      },
+      registeredAt: Date.now(),
+      lastHeartbeat: Date.now(),
+      taskHistory: [],
+    });
+
+    console.log(`[HUB] ${type} registered: ${info.device_name} (${ip}) -> ${deviceId}`);
+    callback(null, { success: true, message: `Registered as ${deviceId}`, device_id: deviceId });
+  };
 }
 
-// --- Client Registration ---
-
-function registerClientHandler(call: grpc.ServerUnaryCall<any, any>, callback: grpc.sendUnaryData<any>) {
-  const { name } = call.request;
-  if (!name) {
-    callback(null, { success: false, message: 'Missing name' });
+function heartbeatHandler(call: grpc.ServerUnaryCall<any, any>, callback: grpc.sendUnaryData<any>) {
+  const { device_id, status } = call.request;
+  const device = devices.get(device_id);
+  if (!device) {
+    callback(null, { success: false, message: `Device ${device_id} not found` });
     return;
   }
 
-  const clientId = `client-${++clientIdCounter}`;
+  device.lastHeartbeat = Date.now();
+  if (status) {
+    device.status = {
+      state: status.state || 'online',
+      message: status.message || '',
+      uptime: status.uptime || 0,
+      activeTasks: status.active_tasks || 0,
+      maxTasks: status.max_tasks || 0,
+      cpuUsage: status.cpu_usage || 0,
+      memoryUsage: status.memory_usage || 0,
+      diskUsage: status.disk_usage || 0,
+      extra: status.extra || {},
+    };
+  }
+
+  callback(null, { success: true, hub_time: new Date().toISOString() });
+}
+
+function unregisterDeviceHandler(call: grpc.ServerUnaryCall<any, any>, callback: grpc.sendUnaryData<any>) {
+  const { device_id } = call.request;
+  if (!devices.has(device_id)) {
+    callback(null, { success: false, message: `Device ${device_id} not found` });
+    return;
+  }
+  devices.delete(device_id);
+  console.log(`[HUB] Device unregistered: ${device_id}`);
+  callback(null, { success: true, message: `Unregistered ${device_id}` });
+}
+
+function listDevicesHandler(call: grpc.ServerUnaryCall<any, any>, callback: grpc.sendUnaryData<any>) {
+  const filter = call.request.device_type || '';
   const now = Date.now();
-  clients.set(clientId, { clientId, name, registeredAt: now, lastActive: now, tasksSubmitted: 0 });
 
-  console.log(`[HUB] Client registered: ${name} -> ${clientId}`);
-  callback(null, { success: true, message: `Registered as ${clientId}`, client_id: clientId });
+  const list = Array.from(devices.values())
+    .filter(d => !filter || d.type === filter)
+    .map(d => ({
+      device_id: d.id,
+      device_type: d.type,
+      info: {
+        device_name: d.info.name,
+        ip_address: d.info.ip,
+        os: d.info.os,
+        hostname: d.info.hostname,
+        version: d.info.version,
+        capabilities: d.info.capabilities,
+      },
+      status: {
+        state: d.status.state,
+        message: d.status.message,
+        uptime: d.status.uptime,
+        active_tasks: d.status.activeTasks,
+        max_tasks: d.status.maxTasks,
+        cpu_usage: d.status.cpuUsage,
+        memory_usage: d.status.memoryUsage,
+        disk_usage: d.status.diskUsage,
+        extra: d.status.extra,
+      },
+      registered_at: d.registeredAt,
+      last_heartbeat: d.lastHeartbeat,
+      connection_state: (now - d.lastHeartbeat < HEARTBEAT_TIMEOUT) ? 'online' : 'offline',
+    }));
+
+  callback(null, { devices: list });
 }
 
-function unregisterClientHandler(call: grpc.ServerUnaryCall<any, any>, callback: grpc.sendUnaryData<any>) {
-  const { client_id } = call.request;
-  if (!client_id) {
-    callback(null, { success: false, message: 'Missing client_id' });
+function getDeviceDetailHandler(call: grpc.ServerUnaryCall<any, any>, callback: grpc.sendUnaryData<any>) {
+  const { device_id } = call.request;
+  const device = devices.get(device_id);
+  if (!device) {
+    callback(null, { device: null, tasks: [] });
     return;
   }
-  clients.delete(client_id);
-  console.log(`[HUB] Client unregistered: ${client_id}`);
-  callback(null, { success: true, message: `Unregistered ${client_id}` });
-}
 
-function listClientsHandler(call: grpc.ServerUnaryCall<any, any>, callback: grpc.sendUnaryData<any>) {
-  const list = Array.from(clients.values()).map(c => ({
-    client_id: c.clientId,
-    name: c.name,
-    registered_at: c.registeredAt,
-    last_active: c.lastActive,
-    tasks_submitted: c.tasksSubmitted,
-  }));
-  callback(null, { clients: list });
-}
-
-// --- Storage Registration ---
-
-function registerStorageHandler(call: grpc.ServerUnaryCall<any, any>, callback: grpc.sendUnaryData<any>) {
-  const { name, address } = call.request;
-  if (!name || !address) {
-    callback(null, { success: false, message: 'Missing name or address' });
-    return;
-  }
-
-  const serverId = `storage-${++storageIdCounter}`;
-  storageServers.set(serverId, { serverId, name, address, registeredAt: Date.now() });
-
-  console.log(`[HUB] Storage registered: ${name} (${address}) -> ${serverId}`);
-  callback(null, { success: true, message: `Registered as ${serverId}`, server_id: serverId });
-}
-
-function unregisterStorageHandler(call: grpc.ServerUnaryCall<any, any>, callback: grpc.sendUnaryData<any>) {
-  const { server_id } = call.request;
-  if (!server_id) {
-    callback(null, { success: false, message: 'Missing server_id' });
-    return;
-  }
-  storageServers.delete(server_id);
-  callback(null, { success: true, message: `Unregistered ${server_id}` });
-}
-
-function listStorageServersHandler(call: grpc.ServerUnaryCall<any, any>, callback: grpc.sendUnaryData<any>) {
-  const list = Array.from(storageServers.values()).map(s => ({
-    server_id: s.serverId,
-    name: s.name,
-    address: s.address,
-    registered_at: s.registeredAt,
-    status: 'online',
-  }));
-  callback(null, { servers: list });
+  const now = Date.now();
+  callback(null, {
+    device: {
+      device_id: device.id,
+      device_type: device.type,
+      info: {
+        device_name: device.info.name,
+        ip_address: device.info.ip,
+        os: device.info.os,
+        hostname: device.info.hostname,
+        version: device.info.version,
+        capabilities: device.info.capabilities,
+      },
+      status: {
+        state: device.status.state,
+        message: device.status.message,
+        uptime: device.status.uptime,
+        active_tasks: device.status.activeTasks,
+        max_tasks: device.status.maxTasks,
+        cpu_usage: device.status.cpuUsage,
+        memory_usage: device.status.memoryUsage,
+        disk_usage: device.status.diskUsage,
+        extra: device.status.extra,
+      },
+      registered_at: device.registeredAt,
+      last_heartbeat: device.lastHeartbeat,
+      connection_state: (now - device.lastHeartbeat < HEARTBEAT_TIMEOUT) ? 'online' : 'offline',
+    },
+    tasks: device.taskHistory.map(t => ({
+      task_id: t.taskId,
+      target_url: t.targetUrl,
+      status: t.status,
+      started_at: t.startedAt,
+      completed_at: t.completedAt,
+      storage_result: t.storageResult,
+    })),
+  });
 }
 
 // --- Download Task ---
 
 function submitDownloadHandler(call: grpc.ServerUnaryCall<any, any>, responseStream: grpc.ServerWritableStream<any, any>) {
   const req = call.request;
-  const clientId = req.client_id || 'unknown';
 
   const sendEvent = (event: any) => {
     try { responseStream.write(event); } catch (_) {}
@@ -134,15 +210,8 @@ function submitDownloadHandler(call: grpc.ServerUnaryCall<any, any>, responseStr
     return;
   }
 
-  // Update client activity
-  const client = clients.get(clientId);
-  if (client) {
-    client.lastActive = Date.now();
-    client.tasksSubmitted++;
-  }
-
-  const targetStorageId = req.storage_server_id;
-  if (targetStorageId && !storageServers.has(targetStorageId)) {
+  const targetStorageId = req.storage_device_id;
+  if (targetStorageId && !devices.has(targetStorageId)) {
     sendEvent({ event: { log: { level: 'error', message: `Storage ${targetStorageId} not registered` } } });
     sendEvent({ event: { state: { state: 'failed', progress: 0 } } });
     safeClose();
@@ -150,14 +219,15 @@ function submitDownloadHandler(call: grpc.ServerUnaryCall<any, any>, responseStr
   }
 
   sendEvent({ event: { state: { state: 'handshake', progress: 0 } } });
-  sendEvent({ event: { log: { level: 'log', message: `[HUB] Task from ${clientId}: ${req.target_url}` } } });
+  sendEvent({ event: { log: { level: 'log', message: `[HUB] Task received: ${req.target_url}` } } });
 
   if (targetStorageId) {
-    const storage = storageServers.get(targetStorageId)!;
-    sendEvent({ event: { log: { level: 'log', message: `[HUB] Target storage: ${storage.name} (${storage.address})` } } });
+    const storage = devices.get(targetStorageId)!;
+    sendEvent({ event: { log: { level: 'log', message: `[HUB] Target storage: ${storage.info.name} (${storage.info.ip})` } } });
   }
 
   const controller = new AbortController();
+  const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
   (async () => {
     try {
@@ -234,20 +304,35 @@ function submitDownloadHandler(call: grpc.ServerUnaryCall<any, any>, responseStr
       sendEvent({ event: { log: { level: 'log', message: `[HUB] Saved: ${localPath}` } } });
 
       // Push to registered storage
+      let storageResult = 'local_only';
       if (targetStorageId) {
-        const storage = storageServers.get(targetStorageId);
+        const storage = devices.get(targetStorageId);
         if (storage) {
-          sendEvent({ event: { log: { level: 'log', message: `[HUB] Pushing to ${storage.name}...` } } });
+          sendEvent({ event: { log: { level: 'log', message: `[HUB] Pushing to ${storage.info.name} (${storage.info.ip})...` } } });
           try {
-            const pushResult = await pushToStorage(storage.address, filename, fileData, contentType, {
+            const pushOk = await pushToStorage(storage.info.ip + ':50051', filename, fileData, contentType, {
               source_url: req.target_url,
               browser_preset: req.browser_preset || '',
-              client_id: clientId,
+              client_id: req.client_id || '',
+              task_id: taskId,
             });
-            sendEvent({ event: { log: { level: pushResult.success ? 'log' : 'error', message: `[HUB] Push ${pushResult.success ? 'success' : 'failed'}: ${pushResult.message}` } } });
+            storageResult = pushOk ? 'pushed' : 'push_failed';
+            sendEvent({ event: { log: { level: pushOk ? 'log' : 'error', message: `[HUB] Storage push ${pushOk ? 'success' : 'failed'}` } } });
           } catch (gErr: any) {
+            storageResult = 'push_error';
             sendEvent({ event: { log: { level: 'error', message: `[HUB] Push error: ${gErr.message}` } } });
           }
+        }
+      }
+
+      // Record task in storage device history
+      if (targetStorageId) {
+        const storage = devices.get(targetStorageId);
+        if (storage) {
+          storage.taskHistory.push({
+            taskId, targetUrl: req.target_url, status: 'completed',
+            startedAt: fetchStart, completedAt: Date.now(), storageResult,
+          });
         }
       }
 
@@ -265,12 +350,8 @@ function submitDownloadHandler(call: grpc.ServerUnaryCall<any, any>, responseStr
 }
 
 async function pushToStorage(
-  address: string,
-  filename: string,
-  data: Buffer,
-  mimeType: string,
-  metadata: Record<string, string>,
-): Promise<{ success: boolean; message: string }> {
+  address: string, filename: string, data: Buffer, mimeType: string, metadata: Record<string, string>,
+): Promise<boolean> {
   const ftProtoPath = path.join(process.cwd(), 'src/lib/proto/file_transfer.proto');
   const pkgDef = protoLoader.loadSync(ftProtoPath, {
     keepCase: true, longs: String, enums: String, defaults: true, oneofs: true,
@@ -283,26 +364,43 @@ async function pushToStorage(
     const deadline = new Date();
     deadline.setMilliseconds(deadline.getMilliseconds() + 60000);
 
-    client.PushFile({
-      filename, data, mime_type: mimeType, metadata, timestamp: Date.now(),
-    }, { deadline }, (err: any, response: any) => {
-      client.close();
-      if (err) {
-        resolve({ success: false, message: err.details || err.message });
-        return;
+    client.PushFile({ filename, data, mime_type: mimeType, metadata, timestamp: Date.now() },
+      { deadline }, (err: any, response: any) => {
+        client.close();
+        resolve(!err && response?.success);
       }
-      resolve({ success: response.success, message: response.message });
-    });
+    );
   });
 }
 
 function pingHandler(call: grpc.ServerUnaryCall<any, any>, callback: grpc.sendUnaryData<any>) {
+  let connectedClients = 0;
+  let connectedStorage = 0;
+  const now = Date.now();
+  for (const d of devices.values()) {
+    if (now - d.lastHeartbeat < HEARTBEAT_TIMEOUT) {
+      if (d.type === 'task_client') connectedClients++;
+      else connectedStorage++;
+    }
+  }
   callback(null, {
-    alive: true,
-    server_id: `download-hub-${process.pid}`,
+    alive: true, server_id: `download-hub-${process.pid}`,
     uptime: Math.floor(process.uptime()),
+    connected_clients: connectedClients,
+    connected_storage: connectedStorage,
   });
 }
+
+// --- Auto-cleanup offline devices ---
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, d] of devices) {
+    if (now - d.lastHeartbeat > HEARTBEAT_TIMEOUT * 3) {
+      console.log(`[HUB] Auto-removed stale device: ${d.info.name} (${id})`);
+      devices.delete(id);
+    }
+  }
+}, 60000);
 
 // --- Lifecycle ---
 
@@ -312,49 +410,44 @@ export function startGrpcServer(port: number = 50051): Promise<void> {
     server = new grpc.Server();
 
     server.addService(Service.service, {
-      RegisterClient: registerClientHandler,
-      UnregisterClient: unregisterClientHandler,
-      ListClients: listClientsHandler,
-      RegisterStorage: registerStorageHandler,
-      UnregisterStorage: unregisterStorageHandler,
-      ListStorageServers: listStorageServersHandler,
+      RegisterTaskClient: registerDeviceHandler('task_client'),
+      RegisterStorageServer: registerDeviceHandler('storage_server'),
+      Heartbeat: heartbeatHandler,
+      UnregisterDevice: unregisterDeviceHandler,
+      ListDevices: listDevicesHandler,
+      GetDeviceDetail: getDeviceDetailHandler,
       SubmitDownload: submitDownloadHandler as any,
       Ping: pingHandler,
     });
 
-    server.bindAsync(
-      `0.0.0.0:${port}`,
-      grpc.ServerCredentials.createInsecure(),
-      (err) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        console.log(`[HUB] Download Hub listening on port ${port}`);
-        resolve();
-      }
-    );
+    server.bindAsync(`0.0.0.0:${port}`, grpc.ServerCredentials.createInsecure(), (err) => {
+      if (err) { reject(err); return; }
+      console.log(`[HUB] Download Hub listening on port ${port}`);
+      resolve();
+    });
   });
+}
+
+function loadProto(): grpc.ServiceClientConstructor {
+  const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
+    keepCase: true, longs: String, enums: String, defaults: true, oneofs: true,
+  });
+  const proto = grpc.loadPackageDefinition(packageDefinition) as any;
+  return proto.downloadhub.DownloadHub;
 }
 
 export function stopGrpcServer(): Promise<void> {
   return new Promise((resolve) => {
     if (server) {
-      server.tryShutdown(() => {
-        console.log('[HUB] gRPC server stopped');
-        server = null;
-        resolve();
-      });
-    } else {
-      resolve();
-    }
+      server.tryShutdown(() => { console.log('[HUB] Stopped'); server = null; resolve(); });
+    } else { resolve(); }
   });
 }
 
-export function getClients() {
-  return Array.from(clients.values());
-}
-
-export function getStorageServers() {
-  return Array.from(storageServers.values());
+export function getAllDevices() {
+  const now = Date.now();
+  return Array.from(devices.values()).map(d => ({
+    ...d,
+    connectionState: (now - d.lastHeartbeat < HEARTBEAT_TIMEOUT) ? 'online' : 'offline',
+  }));
 }

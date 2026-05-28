@@ -1,12 +1,12 @@
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 import path from 'path';
+import os from 'os';
 
 const PROTO_PATH = path.join(process.cwd(), 'src/lib/proto/download_hub.proto');
+let HubService: any = null;
 
-let HubService: grpc.ServiceClientConstructor | null = null;
-
-function getHubService(): grpc.ServiceClientConstructor {
+function getHubService() {
   if (HubService) return HubService;
   const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
     keepCase: true, longs: String, enums: String, defaults: true, oneofs: true,
@@ -16,127 +16,113 @@ function getHubService(): grpc.ServiceClientConstructor {
   return HubService!;
 }
 
-function createHubClient(hubAddress: string): any {
-  const Service = getHubService();
-  return new Service(hubAddress, grpc.credentials.createInsecure());
+function createClient(hubAddress: string): any {
+  return new (getHubService())(hubAddress, grpc.credentials.createInsecure());
 }
 
-// --- Client Registration (task sender) ---
+// --- Device Registration ---
 
-export interface RegisterClientParams {
+export interface DeviceRegistrationParams {
   hubAddress: string;
-  name: string;
+  deviceName: string;
+  os?: string;
+  version?: string;
+  capabilities?: Record<string, string>;
   secret?: string;
 }
 
-export function registerClient(params: RegisterClientParams): Promise<{ success: boolean; message: string; clientId?: string }> {
+export async function registerDevice(
+  type: 'task_client' | 'storage_server',
+  params: DeviceRegistrationParams,
+): Promise<{ success: boolean; message: string; deviceId?: string }> {
   return new Promise((resolve) => {
-    const client = createHubClient(params.hubAddress);
-    client.RegisterClient({ name: params.name, secret: params.secret || '' }, (err: any, response: any) => {
+    const client = createClient(params.hubAddress);
+    const rpc = type === 'task_client' ? 'RegisterTaskClient' : 'RegisterStorageServer';
+    
+    client[rpc]({
+      info: {
+        device_name: params.deviceName,
+        os: params.os || `${os.platform()} ${os.release()}`,
+        hostname: os.hostname(),
+        version: params.version || '1.0.5',
+        capabilities: params.capabilities || {},
+      },
+      secret: params.secret || '',
+    }, (err: any, response: any) => {
       client.close();
       if (err) {
         resolve({ success: false, message: `Registration failed: ${err.details || err.message}` });
         return;
       }
-      resolve({ success: response.success, message: response.message, clientId: response.client_id });
+      resolve({ success: response.success, message: response.message, deviceId: response.device_id });
     });
   });
 }
 
-export function unregisterClient(hubAddress: string, clientId: string): Promise<{ success: boolean; message: string }> {
+// --- Heartbeat ---
+
+export function sendHeartbeat(
+  hubAddress: string,
+  deviceId: string,
+  status: { state: string; message?: string; activeTasks?: number; cpuUsage?: number; memoryUsage?: number; diskUsage?: number },
+): Promise<boolean> {
   return new Promise((resolve) => {
-    const client = createHubClient(hubAddress);
-    client.UnregisterClient({ client_id: clientId }, (err: any, response: any) => {
+    const client = createClient(hubAddress);
+    client.Heartbeat({
+      device_id: deviceId,
+      status: {
+        state: status.state,
+        message: status.message || '',
+        uptime: Math.floor(process.uptime()),
+        active_tasks: status.activeTasks || 0,
+        max_tasks: 10,
+        cpu_usage: status.cpuUsage || 0,
+        memory_usage: status.memoryUsage || 0,
+        disk_usage: status.diskUsage || 0,
+      },
+    }, (err: any, response: any) => {
       client.close();
-      if (err) {
-        resolve({ success: false, message: err.details || err.message });
-        return;
-      }
-      resolve({ success: response.success, message: response.message });
+      resolve(!err && response?.success);
     });
   });
 }
 
-export interface ClientInfo {
-  clientId: string;
-  name: string;
+// --- Device Management ---
+
+export interface DeviceRecord {
+  deviceId: string;
+  deviceType: string;
+  deviceName: string;
+  ip: string;
+  os: string;
+  hostname: string;
+  version: string;
+  state: string;
+  statusMessage: string;
   registeredAt: number;
-  lastActive: number;
-  tasksSubmitted: number;
+  lastHeartbeat: number;
+  connectionState: string;
 }
 
-export function listClients(hubAddress: string): Promise<ClientInfo[]> {
+export function listDevices(hubAddress: string, typeFilter?: string): Promise<DeviceRecord[]> {
   return new Promise((resolve) => {
-    const client = createHubClient(hubAddress);
-    client.ListClients({}, (err: any, response: any) => {
+    const client = createClient(hubAddress);
+    client.ListDevices({ device_type: typeFilter || '' }, (err: any, response: any) => {
       client.close();
       if (err) { resolve([]); return; }
-      resolve((response.clients || []).map((c: any) => ({
-        clientId: c.client_id,
-        name: c.name,
-        registeredAt: c.registered_at,
-        lastActive: c.last_active,
-        tasksSubmitted: c.tasks_submitted,
-      })));
-    });
-  });
-}
-
-// --- Storage Registration ---
-
-export interface RegisterStorageParams {
-  hubAddress: string;
-  name: string;
-  address: string;
-  secret?: string;
-}
-
-export function registerStorage(params: RegisterStorageParams): Promise<{ success: boolean; message: string; serverId?: string }> {
-  return new Promise((resolve) => {
-    const client = createHubClient(params.hubAddress);
-    client.RegisterStorage({ name: params.name, address: params.address, secret: params.secret || '' }, (err: any, response: any) => {
-      client.close();
-      if (err) {
-        resolve({ success: false, message: `Registration failed: ${err.details || err.message}` });
-        return;
-      }
-      resolve({ success: response.success, message: response.message, serverId: response.server_id });
-    });
-  });
-}
-
-export function unregisterStorage(hubAddress: string, serverId: string): Promise<{ success: boolean; message: string }> {
-  return new Promise((resolve) => {
-    const client = createHubClient(hubAddress);
-    client.UnregisterStorage({ server_id: serverId }, (err: any, response: any) => {
-      client.close();
-      if (err) {
-        resolve({ success: false, message: err.details || err.message });
-        return;
-      }
-      resolve({ success: response.success, message: response.message });
-    });
-  });
-}
-
-export interface StorageServerInfo {
-  serverId: string;
-  name: string;
-  address: string;
-  registeredAt: number;
-}
-
-export function listStorageServers(hubAddress: string): Promise<StorageServerInfo[]> {
-  return new Promise((resolve) => {
-    const client = createHubClient(hubAddress);
-    client.ListStorageServers({}, (err: any, response: any) => {
-      client.close();
-      if (err) { resolve([]); return; }
-      resolve((response.servers || []).map((s: any) => ({
-        serverId: s.server_id,
-        name: s.name,
-        address: s.address,
-        registeredAt: s.registered_at,
+      resolve((response.devices || []).map((d: any) => ({
+        deviceId: d.device_id,
+        deviceType: d.device_type,
+        deviceName: d.info?.device_name || 'unknown',
+        ip: d.info?.ip_address || 'unknown',
+        os: d.info?.os || 'unknown',
+        hostname: d.info?.hostname || 'unknown',
+        version: d.info?.version || '0.0.0',
+        state: d.status?.state || 'unknown',
+        statusMessage: d.status?.message || '',
+        registeredAt: d.registered_at || 0,
+        lastHeartbeat: d.last_heartbeat || 0,
+        connectionState: d.connection_state || 'unknown',
       })));
     });
   });
@@ -154,8 +140,7 @@ export interface DownloadTaskParams {
   h2WindowIncrement?: number;
   connectionReuse?: boolean;
   cdnType?: string;
-  storageServerId?: string;
-  clientId?: string;
+  storageDeviceId?: string;
 }
 
 export type DownloadEvent =
@@ -169,7 +154,7 @@ export function submitDownload(
   onEvent: (event: DownloadEvent) => void,
   onError?: (error: string) => void,
 ): void {
-  const client = createHubClient(hubAddress);
+  const client = createClient(hubAddress);
 
   const request = {
     target_url: params.targetUrl,
@@ -181,8 +166,7 @@ export function submitDownload(
     h2_window_increment: params.h2WindowIncrement || 6291456,
     connection_reuse: params.connectionReuse ?? true,
     cdn_type: params.cdnType || 'cloudflare',
-    storage_server_id: params.storageServerId || '',
-    client_id: params.clientId || '',
+    storage_device_id: params.storageDeviceId || '',
   };
 
   const deadline = new Date();
@@ -191,13 +175,9 @@ export function submitDownload(
   const call = client.SubmitDownload(request, { deadline });
 
   call.on('data', (event: any) => {
-    if (event.progress) {
-      onEvent({ type: 'progress', ...event.progress });
-    } else if (event.log) {
-      onEvent({ type: 'log', level: event.log.level, message: event.log.message });
-    } else if (event.state) {
-      onEvent({ type: 'state', state: event.state.state, progress: event.state.progress });
-    }
+    if (event.progress) onEvent({ type: 'progress', ...event.progress });
+    else if (event.log) onEvent({ type: 'log', level: event.log.level, message: event.log.message });
+    else if (event.state) onEvent({ type: 'state', state: event.state.state, progress: event.state.progress });
   });
 
   call.on('error', (err: any) => {
@@ -205,20 +185,21 @@ export function submitDownload(
     client.close();
   });
 
-  call.on('end', () => {
-    client.close();
-  });
+  call.on('end', () => { client.close(); });
 }
 
-// --- Health Check ---
+// --- Health ---
 
-export function pingHub(hubAddress: string): Promise<{ alive: boolean; serverId?: string; uptime?: number }> {
+export function pingHub(hubAddress: string): Promise<{ alive: boolean; serverId?: string; uptime?: number; connectedClients?: number; connectedStorage?: number }> {
   return new Promise((resolve) => {
-    const client = createHubClient(hubAddress);
+    const client = createClient(hubAddress);
     client.Ping({}, { deadline: new Date(Date.now() + 5000) }, (err: any, response: any) => {
       client.close();
       if (err) { resolve({ alive: false }); return; }
-      resolve({ alive: response.alive, serverId: response.server_id, uptime: response.uptime });
+      resolve({
+        alive: response.alive, serverId: response.server_id, uptime: response.uptime,
+        connectedClients: response.connected_clients, connectedStorage: response.connected_storage,
+      });
     });
   });
 }

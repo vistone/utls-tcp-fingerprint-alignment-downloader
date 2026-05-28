@@ -7,8 +7,6 @@ export async function OPTIONS() {
   return handleCorsPreflight();
 }
 
-// Submit download task to the Hub via gRPC
-// Streams progress events back as NDJSON
 export async function POST(request: NextRequest): Promise<Response> {
   const corsHeaders = createCorsHeaders();
 
@@ -19,7 +17,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     });
   }
 
-  const { hubAddress, targetUrl, browserPreset, cdnType, storageServerId } = await request.json();
+  const { hubAddress, targetUrl, browserPreset, cdnType, storageDeviceId } = await request.json();
 
   if (!hubAddress || !targetUrl) {
     return new Response(
@@ -29,39 +27,27 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const encoder = new TextEncoder();
-  let streamClosed = false;
+  let closed = false;
 
   const stream = new ReadableStream({
     start(controller) {
-      const sendEvent = (event: any) => {
-        if (streamClosed) return;
-        try {
-          controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
-        } catch (_) {}
+      const send = (event: any) => {
+        if (closed) return;
+        try { controller.enqueue(encoder.encode(JSON.stringify(event) + "\n")); } catch (_) {}
       };
 
       submitDownload(
         hubAddress,
-        { targetUrl, browserPreset, cdnType, storageServerId },
-        (event) => sendEvent(event),
-        (error) => {
-          sendEvent({ type: "error", message: error });
-          streamClosed = true;
-          try { controller.close(); } catch (_) {}
-        }
+        { targetUrl, browserPreset, cdnType, storageDeviceId },
+        (event) => send(event),
+        (error) => { send({ type: "error", message: error }); closed = true; try { controller.close(); } catch (_) {} }
       );
     },
-    cancel() {
-      streamClosed = true;
-    },
+    cancel() { closed = true; },
   });
 
   return new Response(stream, {
     status: 200,
-    headers: {
-      "Content-Type": "application/x-ndjson",
-      "Cache-Control": "no-cache",
-      ...corsHeaders,
-    },
+    headers: { "Content-Type": "application/x-ndjson", "Cache-Control": "no-cache", ...corsHeaders },
   });
 }

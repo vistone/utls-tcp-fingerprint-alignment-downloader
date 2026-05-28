@@ -1,13 +1,13 @@
 import { NextRequest } from "next/server";
 import { validateApiKey } from "@/lib/auth";
 import { createCorsHeaders, handleCorsPreflight } from "@/lib/sse-helper";
-import { registerStorage, unregisterStorage, listStorageServers, pingHub } from "@/lib/grpc-client";
+import { registerDevice, listDevices, sendHeartbeat, pingHub } from "@/lib/grpc-client";
 
 export async function OPTIONS() {
   return handleCorsPreflight();
 }
 
-// GET - list registered storage servers
+// GET - List storage servers
 export async function GET(request: NextRequest): Promise<Response> {
   const corsHeaders = createCorsHeaders();
   const { searchParams } = new URL(request.url);
@@ -22,23 +22,21 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   try {
     const [servers, pingResult] = await Promise.all([
-      listStorageServers(hubAddress),
+      listDevices(hubAddress, 'storage_server'),
       pingHub(hubAddress),
     ]);
-
     return new Response(
       JSON.stringify({ hub: { address: hubAddress, alive: pingResult.alive, uptime: pingResult.uptime }, servers }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (err: any) {
-    return new Response(
-      JSON.stringify({ error: `Failed to query hub: ${err.message}` }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
+    return new Response(JSON.stringify({ error: `Failed to query hub: ${err.message}` }), {
+      status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   }
 }
 
-// POST - register/unregister storage server
+// POST - Register storage server
 export async function POST(request: NextRequest): Promise<Response> {
   const corsHeaders = createCorsHeaders();
 
@@ -49,38 +47,16 @@ export async function POST(request: NextRequest): Promise<Response> {
     });
   }
 
-  const { action, hubAddress = "localhost:50051", name, address, serverId } = await request.json();
-
-  if (action === "register") {
-    if (!name || !address) {
-      return new Response(
-        JSON.stringify({ error: "Missing name or address" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-    const result = await registerStorage({ hubAddress, name, address });
-    return new Response(
-      JSON.stringify(result),
-      { status: result.success ? 200 : 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
+  const { hubAddress = "localhost:50051", deviceName } = await request.json();
+  if (!deviceName) {
+    return new Response(JSON.stringify({ error: "Missing deviceName" }), {
+      status: 400, headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   }
 
-  if (action === "unregister") {
-    if (!serverId) {
-      return new Response(
-        JSON.stringify({ error: "Missing serverId" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-    const result = await unregisterStorage(hubAddress, serverId);
-    return new Response(
-      JSON.stringify(result),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
-  }
-
-  return new Response(
-    JSON.stringify({ error: "Invalid action. Use 'register' or 'unregister'" }),
-    { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-  );
+  const result = await registerDevice('storage_server', { hubAddress, deviceName });
+  return new Response(JSON.stringify(result), {
+    status: result.success ? 200 : 400,
+    headers: { "Content-Type": "application/json", ...corsHeaders },
+  });
 }
