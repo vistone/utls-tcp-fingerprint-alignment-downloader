@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package filetransfer;
+
+service FileTransfer {
+  // Push a single file to storage server
+  rpc PushFile (FileRequest) returns (TransferResponse);
+  
+  // Check server health
+  rpc Ping (PingRequest) returns (PingResponse);
+}
+
+message FileRequest {
+  string filename = 1;
+  bytes data = 2;
+  string mime_type = 3;
+  map<string, string> metadata = 4;
+  int64 timestamp = 5;
+}
+
+message TransferResponse {
+  bool success = 1;
+  string message = 2;
+  string file_id = 3;
+  string storage_path = 4;
+}
+
+message PingRequest {}
+
+message PingResponse {
+  bool alive = 1;
+  string server_id = 2;
+  int64 uptime = 3;
+  int64 stored_files = 4;
+  int64 total_bytes = 5;
+}
