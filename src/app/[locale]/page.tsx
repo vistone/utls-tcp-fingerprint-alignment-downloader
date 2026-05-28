@@ -11,6 +11,7 @@ import {
   Check,
   Copy,
   Server,
+  Send,
 } from "lucide-react";
 import Header from "@/components/Header";
 import FingerprintConfig from "@/components/FingerprintConfig";
@@ -22,6 +23,7 @@ import GlobalDnsManager from "@/components/GlobalDnsManager";
 import AiChat from "@/components/AiChat";
 import AlignmentReport from "@/components/AlignmentReport";
 import DeviceManager from "@/components/DeviceManager";
+import TaskClient from "@/components/TaskClient";
 import FingerprintPreview from "@/components/FingerprintPreview";
 import { tsSourceFiles, BROWSER_TLS_SPECS, buildJA4Fingerprint } from "@/tsSource";
 
@@ -109,7 +111,7 @@ const DEFAULT_BATCH_ITEMS: BatchItem[] = [
 
 export default function Page() {
   const [activeTab, setActiveTab] = useState<
-    "downloader" | "ja4_builder" | "tcp_alignment" | "dns_resolver" | "ai_architect" | "device_manager"
+    "downloader" | "ja4_builder" | "tcp_alignment" | "dns_resolver" | "ai_architect" | "device_manager" | "task_client"
   >("downloader");
 
   const [targetUrl, setTargetUrl] = useState("https://kh.google.com/rt/earth/PlanetoidMetadata");
@@ -941,6 +943,17 @@ export default function Page() {
               <Server className="w-4 h-4 text-[#00ffcc]" />
               Devices
             </button>
+            <button
+              onClick={() => setActiveTab("task_client")}
+              className={`px-4 py-2.5 text-xs font-mono font-bold flex items-center gap-2 rounded-t transition cursor-pointer ${
+                activeTab === "task_client"
+                  ? "bg-[#050507] text-cyan-400 border-t-2 border-cyan-400"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              <Send className="w-4 h-4 text-cyan-400" />
+              Client
+            </button>
           </div>
 
           {/* Tab Content */}
@@ -1041,6 +1054,12 @@ export default function Page() {
           {(activeTab as string) === "device_manager" && (
             <div className="min-h-[580px]">
               <DeviceManager grpcHubAddress={grpcHubAddress} />
+            </div>
+          )}
+
+          {(activeTab as string) === "task_client" && (
+            <div className="min-h-[580px]">
+              <TaskClient grpcHubAddress={grpcHubAddress} />
             </div>
           )}
                         </div>
