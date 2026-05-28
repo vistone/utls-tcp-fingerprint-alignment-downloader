@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.5",
   "scripts": {
-    "dev": "next dev",
+    "dev": "npx tsx scripts/start-hub.ts & next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint && tsc --noEmit"

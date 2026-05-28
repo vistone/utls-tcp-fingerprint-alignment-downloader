@@ -10,8 +10,8 @@ export function ensureGrpcHub() {
   if (started) return;
   started = true;
   
-  // Don't start during build or test environments
-  if (process.env.NODE_ENV === 'test' || process.env.NEXT_PHASE === 'phase-production-build') {
+  // Don't start during build
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
     return;
   }
   
