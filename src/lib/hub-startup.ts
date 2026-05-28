@@ -9,13 +9,20 @@ let started = false;
 export function ensureGrpcHub() {
   if (started) return;
   started = true;
+  
+  // Don't start during build or test environments
+  if (process.env.NODE_ENV === 'test' || process.env.NEXT_PHASE === 'phase-production-build') {
+    return;
+  }
+  
   console.log('[HUB] Auto-starting gRPC Hub server on port 50051...');
   startGrpcServer(50051).catch((err: Error) => {
-    console.error('[HUB] Failed to start gRPC server:', err.message);
+    if (err.message?.includes('EADDRINUSE')) {
+      console.log('[HUB] Port 50051 already in use (likely already running)');
+    } else {
+      console.error('[HUB] Failed to start gRPC server:', err.message);
+    }
   });
 }
 
 ensureGrpcHub();
-
-// Prevent tree-shaking by making this module's exports visible
-export const __version__ = '1.0.0';

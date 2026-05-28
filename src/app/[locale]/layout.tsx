@@ -1,5 +1,6 @@
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getLocale } from "next-intl/server";
+import "@/lib/hub-startup";
 
 export default async function LocaleLayout({
   children,
