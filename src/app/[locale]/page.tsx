@@ -10,6 +10,7 @@ import {
   Terminal,
   Check,
   Copy,
+  Server,
 } from "lucide-react";
 import Header from "@/components/Header";
 import FingerprintConfig from "@/components/FingerprintConfig";
@@ -19,8 +20,9 @@ import BatchDownload from "@/components/BatchDownload";
 import DnsTester from "@/components/DnsTester";
 import GlobalDnsManager from "@/components/GlobalDnsManager";
 import AiChat from "@/components/AiChat";
-import FingerprintPreview from "@/components/FingerprintPreview";
 import AlignmentReport from "@/components/AlignmentReport";
+import DeviceManager from "@/components/DeviceManager";
+import FingerprintPreview from "@/components/FingerprintPreview";
 import { tsSourceFiles, BROWSER_TLS_SPECS, buildJA4Fingerprint } from "@/tsSource";
 
 interface BatchItem {
@@ -107,7 +109,7 @@ const DEFAULT_BATCH_ITEMS: BatchItem[] = [
 
 export default function Page() {
   const [activeTab, setActiveTab] = useState<
-    "downloader" | "ja4_builder" | "tcp_alignment" | "dns_resolver" | "ai_architect"
+    "downloader" | "ja4_builder" | "tcp_alignment" | "dns_resolver" | "ai_architect" | "device_manager"
   >("downloader");
 
   const [targetUrl, setTargetUrl] = useState("https://kh.google.com/rt/earth/PlanetoidMetadata");
@@ -928,6 +930,17 @@ export default function Page() {
               <Sparkles className="w-4 h-4 text-amber-500" />
               AI Expert
             </button>
+            <button
+              onClick={() => setActiveTab("device_manager")}
+              className={`px-4 py-2.5 text-xs font-mono font-bold flex items-center gap-2 rounded-t transition cursor-pointer ${
+                activeTab === "device_manager"
+                  ? "bg-[#050507] text-[#00ffcc] border-t-2 border-[#00ffcc]"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              <Server className="w-4 h-4 text-[#00ffcc]" />
+              Devices
+            </button>
           </div>
 
           {/* Tab Content */}
@@ -1022,8 +1035,14 @@ export default function Page() {
                           ) : (
                             <div className="bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1.5 rounded flex items-center gap-1.5 text-xs font-mono font-bold animate-pulse">
                               High Risk Warning
-                            </div>
-                          )}
+            </div>
+          )}
+
+          {(activeTab as string) === "device_manager" && (
+            <div className="min-h-[580px]">
+              <DeviceManager grpcHubAddress={grpcHubAddress} />
+            </div>
+          )}
                         </div>
                       </div>
                       <div className="mt-3.5 h-1.5 bg-[#050507] rounded-full overflow-hidden">
