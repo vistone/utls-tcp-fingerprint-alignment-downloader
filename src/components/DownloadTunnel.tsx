@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRef, useEffect } from "react";
 import { Terminal, RefreshCw, TrendingUp } from "lucide-react";
 
@@ -22,6 +23,7 @@ export default function DownloadTunnel({
   startTestDownload,
   resetDownload,
 }: DownloadTunnelProps) {
+  const t = useTranslations("DownloadTunnel");
   const logRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -37,10 +39,10 @@ export default function DownloadTunnel({
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
           <Terminal className="w-4 h-4 text-[#00ffcc]" />
-          Download Tunnel Console
+          {t("consoleTitle")}
         </h3>
         <div className="text-[10px] font-mono text-gray-400">
-          HOST: {targetUrl.split("/")[2] || "target-cdn"}
+          {t("hostLabel")} {targetUrl.split("/")[2] || "target-cdn"}
         </div>
       </div>
 
@@ -52,7 +54,7 @@ export default function DownloadTunnel({
         >
           {downloadLog.length === 0 ? (
             <div className="text-gray-500 italic text-center py-8">
-              Ready. Configure alignment params and start download.
+              {t("idleText")}
             </div>
           ) : (
             downloadLog.map((log, i) => (
@@ -85,10 +87,10 @@ export default function DownloadTunnel({
               {downloadState === "downloading" && (
                 <TrendingUp className="w-3.5 h-3.5 text-teal-400" />
               )}
-              <span className="text-white capitalize">State: {downloadState}</span>
+              <span className="text-white capitalize">{t("state")} {downloadState}</span>
             </div>
             {downloadState === "downloading" && (
-              <span className="text-[#00ffcc] font-bold">{downloadSpeed} MB/s</span>
+              <span className="text-[#00ffcc] font-bold">{downloadSpeed} {t("mbPerSec")}</span>
             )}
           </div>
 
@@ -100,8 +102,8 @@ export default function DownloadTunnel({
           </div>
 
           <div className="flex justify-between text-[10px] text-gray-500 font-mono">
-            <span>Progress: {Math.round(downloadProgress)}%</span>
-            <span>100% ALIGNMENT</span>
+            <span>{t("progress")} {Math.round(downloadProgress)}%</span>
+            <span>{t("alignment")}</span>
           </div>
         </div>
       </div>
@@ -112,14 +114,14 @@ export default function DownloadTunnel({
           disabled={isRunning}
           className="flex-1 bg-gradient-to-r from-teal-600 to-[#00ffcc] hover:from-teal-500 hover:to-[#00ffcc]/80 text-[#050507] py-2.5 rounded font-mono font-bold text-xs tracking-wider transition-all shadow-[0_0_15px_rgba(0,255,204,0.25)] disabled:opacity-40 disabled:pointer-events-none active:scale-95 cursor-pointer"
         >
-          Start Aligned Download
+          {t("startButton")}
         </button>
         {(downloadState === "completed" || downloadState === "failed") && (
           <button
             onClick={resetDownload}
             className="bg-[#1f1f27] border border-[#2d2d35] hover:bg-[#252530] text-gray-300 px-4 py-2.5 rounded text-xs font-mono transition cursor-pointer"
           >
-            Reset
+            {t("reset")}
           </button>
         )}
       </div>

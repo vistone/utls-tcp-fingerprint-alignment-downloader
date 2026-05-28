@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Compass } from "lucide-react";
 
 interface DnsConfigProps {
@@ -35,16 +36,17 @@ export default function DnsConfig({
   lbStrategy,
   setLbStrategy,
 }: DnsConfigProps) {
+  const t = useTranslations("DnsConfig");
   return (
     <div className="bg-[#111116] border border-[#2d2d35] p-5 rounded relative overflow-hidden shadow-xl">
       <h2 className="text-xs font-bold uppercase tracking-wider text-white font-mono flex items-center gap-2 mb-4">
         <Compass className="w-4 h-4 text-purple-400" />
-        4. DNS & Load Balancer
+        {t("sectionTitle")}
       </h2>
 
       <div className="space-y-4 font-mono text-xs">
         <div className="flex justify-between items-center bg-[#050507] p-2 rounded border border-[#1a1a24]">
-          <span className="text-gray-400">DNS Override:</span>
+          <span className="text-gray-400">{t("dnsOverride")}</span>
           <button
             onClick={() => setDnsEnabled(!dnsEnabled)}
             className={`px-3 py-1 rounded text-[10px] uppercase font-bold border transition ${
@@ -53,25 +55,25 @@ export default function DnsConfig({
                 : "border-gray-700 text-gray-500 hover:text-gray-300"
             }`}
           >
-            {dnsEnabled ? "ACTIVE" : "BYPASS"}
+            {dnsEnabled ? t("active") : t("bypass")}
           </button>
         </div>
 
         {dnsEnabled && (
           <div className="space-y-3 bg-[#050507] p-3 rounded border border-[#1a1a24]">
             <div>
-              <label className="text-[10px] text-gray-400 block mb-1">DNS Servers:</label>
+              <label className="text-[10px] text-gray-400 block mb-1">{t("dnsServers")}</label>
               <input
                 type="text"
                 value={dnsServers}
                 onChange={(e) => setDnsServers(e.target.value)}
-                placeholder="8.8.8.8, 114.114.114.114"
+                placeholder={t("serversPlaceholder")}
                 className="w-full bg-[#111116] border border-[#2d2d35] p-1.5 text-white text-[10px] rounded focus:outline-none focus:border-purple-500"
               />
             </div>
 
             <div>
-              <label className="text-[10px] text-gray-400 block mb-1">Timeout (ms):</label>
+              <label className="text-[10px] text-gray-400 block mb-1">{t("timeout")}</label>
               <input
                 type="number"
                 value={dnsTimeout}
@@ -83,51 +85,51 @@ export default function DnsConfig({
             </div>
 
             <div>
-              <label className="text-[10px] text-gray-400 block mb-1">LB Strategy:</label>
+              <label className="text-[10px] text-gray-400 block mb-1">{t("lbStrategy")}</label>
               <select
                 value={lbStrategy}
                 onChange={(e) => setLbStrategy(e.target.value as "round_robin" | "random" | "fastest" | "priority")}
                 className="w-full bg-[#111116] border border-[#2d2d35] p-1.5 text-white text-[10px] rounded focus:outline-none focus:border-purple-500 font-mono"
               >
-                <option value="fastest">Lowest Latency</option>
-                <option value="round_robin">Round Robin</option>
-                <option value="random">Random</option>
-                <option value="priority">Priority</option>
+                <option value="fastest">{t("strategyOptions.fastest")}</option>
+                <option value="round_robin">{t("strategyOptions.round_robin")}</option>
+                <option value="random">{t("strategyOptions.random")}</option>
+                <option value="priority">{t("strategyOptions.priority")}</option>
               </select>
             </div>
 
             <div>
-              <label className="text-[10px] text-gray-400 block mb-1">Hosts Override:</label>
+              <label className="text-[10px] text-gray-400 block mb-1">{t("hostsOverride")}</label>
               <textarea
                 rows={2}
                 value={dnsHosts}
                 onChange={(e) => setDnsHosts(e.target.value)}
-                placeholder="example.com:127.0.0.1"
+                placeholder={t("hostsPlaceholder")}
                 className="w-full bg-[#111116] border border-[#2d2d35] p-1.5 text-white text-[10px] rounded focus:outline-none focus:border-purple-500 font-mono resize-none"
               />
             </div>
 
             <div className="flex justify-between items-center text-[10px]">
-              <span className="text-gray-400">DNS Cache:</span>
+              <span className="text-gray-400">{t("dnsCache")}</span>
               <button
                 onClick={() => setDnsCacheEnabled(!dnsCacheEnabled)}
                 className={`px-1.5 py-0.5 rounded border ${
                   dnsCacheEnabled ? "border-purple-500 bg-purple-500/5 text-purple-400" : "border-gray-700 text-gray-500"
                 }`}
               >
-                {dnsCacheEnabled ? "ENABLED" : "DISABLED"}
+                {dnsCacheEnabled ? t("cacheEnabled") : t("cacheDisabled")}
               </button>
             </div>
 
             <div className="flex justify-between items-center text-[10px]">
-              <span className="text-gray-400">Parallel:</span>
+              <span className="text-gray-400">{t("parallel")}</span>
               <button
                 onClick={() => setDnsParallel(!dnsParallel)}
                 className={`px-1.5 py-0.5 rounded border ${
                   dnsParallel ? "border-purple-500 bg-purple-500/5 text-purple-400" : "border-gray-700 text-gray-500"
                 }`}
               >
-                {dnsParallel ? "PARALLEL" : "SERIAL"}
+                {dnsParallel ? t("parallelActive") : t("parallelSerial")}
               </button>
             </div>
           </div>

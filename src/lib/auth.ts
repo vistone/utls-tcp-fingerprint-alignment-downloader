@@ -2,7 +2,7 @@ const API_SECRET_KEY = process.env.API_SECRET_KEY || "";
 
 export function validateApiKey(request: Request): boolean {
   if (!API_SECRET_KEY) {
-    return true;
+    return process.env.NODE_ENV !== "production";
   }
 
   const authHeader = request.headers.get("authorization");
