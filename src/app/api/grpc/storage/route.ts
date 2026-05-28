@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { validateApiKey } from "@/lib/auth";
 import { createCorsHeaders, handleCorsPreflight } from "@/lib/sse-helper";
 import { registerDevice, listDevices, sendHeartbeat, pingHub } from "@/lib/grpc-client";
+import "@/lib/hub-startup";
 
 export async function OPTIONS() {
   return handleCorsPreflight();

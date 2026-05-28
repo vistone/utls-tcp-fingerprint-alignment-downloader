@@ -227,6 +227,7 @@ function submitDownloadHandler(call: any) {
   }
 
   const controller = new AbortController();
+  const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
   (async () => {
     try {
@@ -337,8 +338,8 @@ function submitDownloadHandler(call: any) {
       sendEvent('state', { state: 'completed', progress: 100 });
 
     } catch (err: any) {
-      sendEvent({ event: { log: { level: 'error', message: `[HUB] Error: ${err.message}` } } });
-      sendEvent({ event: { state: { state: 'failed', progress: 0 } } });
+      sendEvent('log', { level: 'error', message: `[HUB] Error: ${err.message}` });
+      sendEvent('state', { state: 'failed', progress: 0 });
     }
 
     safeClose();
