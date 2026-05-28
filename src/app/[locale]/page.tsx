@@ -1048,20 +1048,8 @@ export default function Page() {
                           ) : (
                             <div className="bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1.5 rounded flex items-center gap-1.5 text-xs font-mono font-bold animate-pulse">
                               High Risk Warning
-            </div>
-          )}
-
-          {(activeTab as string) === "device_manager" && (
-            <div className="min-h-[580px]">
-              <DeviceManager grpcHubAddress={grpcHubAddress} />
-            </div>
-          )}
-
-          {(activeTab as string) === "task_client" && (
-            <div className="min-h-[580px]">
-              <TaskClient grpcHubAddress={grpcHubAddress} />
-            </div>
-          )}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="mt-3.5 h-1.5 bg-[#050507] rounded-full overflow-hidden">
@@ -1092,6 +1080,18 @@ export default function Page() {
                   />
                 </>
               )}
+            </div>
+          )}
+
+          {(activeTab as string) === "device_manager" && (
+            <div className="min-h-[580px]">
+              <DeviceManager grpcHubAddress={grpcHubAddress} />
+            </div>
+          )}
+
+          {(activeTab as string) === "task_client" && (
+            <div className="min-h-[580px]">
+              <TaskClient grpcHubAddress={grpcHubAddress} />
             </div>
           )}
 
