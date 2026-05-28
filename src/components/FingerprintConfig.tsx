@@ -36,6 +36,10 @@ interface FingerprintConfigProps {
   loadBatchManifest: (url: string) => void;
   tcpPreset: string;
   applyPresetConfig: (preset: string) => void;
+  grpcEnabled: boolean;
+  setGrpcEnabled: (v: boolean) => void;
+  grpcServerAddress: string;
+  setGrpcServerAddress: (v: string) => void;
 }
 
 export default function FingerprintConfig({
@@ -71,6 +75,10 @@ export default function FingerprintConfig({
   loadBatchManifest,
   tcpPreset,
   applyPresetConfig,
+  grpcEnabled,
+  setGrpcEnabled,
+  grpcServerAddress,
+  setGrpcServerAddress,
 }: FingerprintConfigProps) {
   const t = useTranslations("FingerprintConfig");
   return (
@@ -232,6 +240,50 @@ export default function FingerprintConfig({
                     className="w-full bg-[#111116] border border-[#2d2d35] rounded px-2.5 py-1.5 text-amber-300 focus:outline-none focus:border-amber-500 text-xs font-mono"
                   />
                 </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* gRPC Distributed Storage */}
+      <div className="bg-[#111116] border border-[#2d2d35] p-5 rounded relative overflow-hidden shadow-xl">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-white font-mono flex items-center gap-2 mb-4">
+          <span className="w-4 h-4 text-orange-400">⬡</span>
+          {t("sectionGrpcTitle", { defaultMessage: "gRPC Distributed Storage" })}
+        </h2>
+        <div className="space-y-3 font-mono text-xs">
+          <div className="space-y-1.5 p-3 bg-[#050507] border border-[#2d2d35]/60 rounded">
+            <div className="flex items-center justify-between">
+              <div className="max-w-[75%]">
+                <span className="text-[10px] uppercase font-mono text-orange-400 font-bold">
+                  gRPC Push
+                </span>
+              </div>
+              <button
+                onClick={() => setGrpcEnabled(!grpcEnabled)}
+                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${
+                  grpcEnabled ? "bg-orange-500" : "bg-gray-700"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-[#111116] shadow-lg transition ${
+                    grpcEnabled ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+            {grpcEnabled && (
+              <div className="space-y-1.5 pt-2">
+                <label className="text-[9px] text-gray-500 block">{t("grpcRemoteAddress", { defaultMessage: "Remote Server Address" })}</label>
+                <input
+                  type="text"
+                  value={grpcServerAddress}
+                  onChange={(e) => setGrpcServerAddress(e.target.value)}
+                  placeholder="192.168.1.10:50051"
+                  className="w-full bg-[#111116] border border-[#2d2d35] rounded px-2.5 py-1.5 text-orange-300 focus:outline-none focus:border-orange-500 text-xs font-mono"
+                />
+                <p className="text-[9px] text-gray-600">{t("grpcHint", { defaultMessage: "Download完成后自动通过 gRPC 推送文件" })}</p>
               </div>
             )}
           </div>

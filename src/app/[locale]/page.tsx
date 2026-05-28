@@ -151,6 +151,8 @@ export default function Page() {
     "idle" | "handshake" | "requesting" | "downloading" | "completed" | "failed"
   >("idle");
   const [downloadLog, setDownloadLog] = useState<string[]>([]);
+  const [grpcEnabled, setGrpcEnabled] = useState(false);
+  const [grpcServerAddress, setGrpcServerAddress] = useState("");
 
   const [downloadMode, setDownloadMode] = useState<"single" | "batch">("single");
   const [batchManifestUrl, setBatchManifestUrl] = useState("/example-manifest.json");
@@ -535,32 +537,41 @@ export default function Page() {
     setDownloadSpeed(0);
     setDownloadLog(["[ALIGN] Channel ready. Initiating relay handshake..."]);
 
+    const useGrpc = grpcEnabled && grpcServerAddress;
+    const apiUrl = useGrpc ? "/api/grpc/submit-download" : "/api/download";
+    const bodyPayload = useGrpc ? {
+      serverAddress: grpcServerAddress,
+      targetUrl,
+      browserPreset,
+      cdnType,
+    } : {
+      targetUrl,
+      userAgent: getUserAgent(),
+      browserPreset,
+      tcpTtl,
+      tcpMss,
+      tcpWindowSize,
+      h2WindowIncrement,
+      connectionReuse,
+      useProxy,
+      proxyHost,
+      proxyPort,
+      cdnType,
+      dnsEnabled,
+      dnsServers,
+      dnsTimeout,
+      dnsParallel,
+      dnsCacheEnabled,
+      dnsHosts,
+      lbStrategy,
+    };
+
     try {
-      const response = await fetch("/api/download", {
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: abortControllerRef.current?.signal,
-        body: JSON.stringify({
-          targetUrl,
-          userAgent: getUserAgent(),
-          browserPreset,
-          tcpTtl,
-          tcpMss,
-          tcpWindowSize,
-          h2WindowIncrement,
-          connectionReuse,
-          useProxy,
-          proxyHost,
-          proxyPort,
-          cdnType,
-          dnsEnabled,
-          dnsServers,
-          dnsTimeout,
-          dnsParallel,
-          dnsCacheEnabled,
-          dnsHosts,
-          lbStrategy,
-        }),
+        body: JSON.stringify(bodyPayload),
       });
 
       if (!response.ok) throw new Error(`Relay node response abnormal (HTTP ${response.status})`);
@@ -818,6 +829,10 @@ export default function Page() {
             loadBatchManifest={loadBatchManifest}
             tcpPreset={tcpPreset}
             applyPresetConfig={applyPresetConfig}
+            grpcEnabled={grpcEnabled}
+            setGrpcEnabled={setGrpcEnabled}
+            grpcServerAddress={grpcServerAddress}
+            setGrpcServerAddress={setGrpcServerAddress}
           />
           <DnsConfig
             dnsEnabled={dnsEnabled}
@@ -924,6 +939,8 @@ export default function Page() {
                       targetUrl={targetUrl}
                       startTestDownload={startTestDownload}
                       resetDownload={resetDownload}
+                      grpcEnabled={grpcEnabled}
+                      grpcServerAddress={grpcServerAddress}
                     />
                   </div>
                   <div className="lg:col-span-5 flex flex-col gap-6">

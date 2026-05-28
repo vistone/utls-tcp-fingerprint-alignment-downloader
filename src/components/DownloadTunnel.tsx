@@ -12,6 +12,8 @@ interface DownloadTunnelProps {
   targetUrl: string;
   startTestDownload: () => void;
   resetDownload: () => void;
+  grpcEnabled?: boolean;
+  grpcServerAddress?: string;
 }
 
 export default function DownloadTunnel({
@@ -22,6 +24,8 @@ export default function DownloadTunnel({
   targetUrl,
   startTestDownload,
   resetDownload,
+  grpcEnabled = false,
+  grpcServerAddress = "",
 }: DownloadTunnelProps) {
   const t = useTranslations("DownloadTunnel");
   const logRef = useRef<HTMLDivElement | null>(null);
@@ -41,8 +45,11 @@ export default function DownloadTunnel({
           <Terminal className="w-4 h-4 text-[#00ffcc]" />
           {t("consoleTitle")}
         </h3>
-        <div className="text-[10px] font-mono text-gray-400">
-          {t("hostLabel")} {targetUrl.split("/")[2] || "target-cdn"}
+        <div className="text-[10px] font-mono text-gray-400 flex items-center gap-3">
+          <span>{t("hostLabel")} {targetUrl.split("/")[2] || "target-cdn"}</span>
+          {grpcEnabled && grpcServerAddress && (
+            <span className="text-orange-400 font-bold">→ gRPC: {grpcServerAddress}</span>
+          )}
         </div>
       </div>
 

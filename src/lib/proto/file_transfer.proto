@@ -9,23 +9,79 @@ service FileTransfer {
   // Push multiple files (server streaming)
   rpc PushFiles (stream FileRequest) returns (TransferResponse);
   
+  // Submit a download task via gRPC (server streaming progress)
+  rpc SubmitDownload (DownloadRequest) returns (stream DownloadEvent);
+  
   // Check server health
   rpc Ping (PingRequest) returns (PingResponse);
 }
 
+// File transfer messages
 message FileRequest {
   string filename = 1;
   bytes data = 2;
   string mime_type = 3;
-  map<string, string> metadata = 4;  // e.g. source_url, fingerprint_info
+  map<string, string> metadata = 4;
   int64 timestamp = 5;
 }
 
 message TransferResponse {
   bool success = 1;
   string message = 2;
-  string file_id = 3;  // assigned by server
+  string file_id = 3;
   string storage_path = 4;
+}
+
+// Download task messages
+message DownloadRequest {
+  string target_url = 1;
+  string browser_preset = 2;
+  string user_agent = 3;
+  int32 tcp_ttl = 4;
+  int32 tcp_mss = 5;
+  int32 tcp_window_size = 6;
+  int32 h2_window_increment = 7;
+  bool connection_reuse = 8;
+  bool use_proxy = 9;
+  string proxy_host = 10;
+  int32 proxy_port = 11;
+  string cdn_type = 12;
+  // DNS configuration
+  bool dns_enabled = 13;
+  string dns_servers = 14;
+  int32 dns_timeout = 15;
+  bool dns_parallel = 16;
+  bool dns_cache_enabled = 17;
+  string dns_hosts = 18;
+  string lb_strategy = 19;
+  // gRPC storage
+  bool grpc_push_enabled = 20;
+  string grpc_push_server = 21;
+}
+
+message DownloadEvent {
+  oneof event {
+    DownloadProgress progress = 1;
+    DownloadLog log = 2;
+    DownloadState state = 3;
+  }
+}
+
+message DownloadProgress {
+  float progress = 1;
+  float speed = 2;
+  int64 received = 3;
+  int64 total = 4;
+}
+
+message DownloadLog {
+  string level = 1;  // log, error, warn
+  string message = 2;
+}
+
+message DownloadState {
+  string state = 1;  // handshake, downloading, completed, failed
+  float progress = 2;
 }
 
 message PingRequest {}

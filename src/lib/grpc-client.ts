@@ -104,3 +104,82 @@ export function pingServer(serverAddress: string, timeoutMs = 5000): Promise<Pin
     });
   });
 }
+
+export interface DownloadTaskParams {
+  targetUrl: string;
+  browserPreset?: string;
+  userAgent?: string;
+  tcpTtl?: number;
+  tcpMss?: number;
+  tcpWindowSize?: number;
+  h2WindowIncrement?: number;
+  connectionReuse?: boolean;
+  cdnType?: string;
+  grpcPushEnabled?: boolean;
+  grpcPushServer?: string;
+}
+
+export type DownloadEvent = {
+  type: 'progress';
+  progress: number;
+  speed: number;
+  received: number;
+  total: number;
+} | {
+  type: 'log';
+  level: string;
+  message: string;
+} | {
+  type: 'state';
+  state: string;
+  progress: number;
+};
+
+export function submitDownload(
+  serverAddress: string,
+  params: DownloadTaskParams,
+  onEvent: (event: DownloadEvent) => void,
+  onError?: (error: string) => void,
+): void {
+  const Service = getService();
+  const client = new Service(serverAddress, grpc.credentials.createInsecure());
+  
+  const request = {
+    target_url: params.targetUrl,
+    browser_preset: params.browserPreset || 'chrome',
+    user_agent: params.userAgent || 'Mozilla/5.0',
+    tcp_ttl: params.tcpTtl || 128,
+    tcp_mss: params.tcpMss || 1460,
+    tcp_window_size: params.tcpWindowSize || 65535,
+    h2_window_increment: params.h2WindowIncrement || 6291456,
+    connection_reuse: params.connectionReuse ?? true,
+    use_proxy: false,
+    cdn_type: params.cdnType || 'cloudflare',
+    grpc_push_enabled: params.grpcPushEnabled ?? false,
+    grpc_push_server: params.grpcPushServer || '',
+  };
+  
+  const deadline = new Date();
+  deadline.setMilliseconds(deadline.getMilliseconds() + 300000); // 5 min timeout
+  
+  const call = client.SubmitDownload(request, { deadline });
+  
+  call.on('data', (event: any) => {
+    if (event.progress) {
+      onEvent({ type: 'progress', ...event.progress });
+    } else if (event.log) {
+      onEvent({ type: 'log', level: event.log.level, message: event.log.message });
+    } else if (event.state) {
+      onEvent({ type: 'state', state: event.state.state, progress: event.state.progress });
+    }
+  });
+  
+  call.on('error', (err: any) => {
+    onError?.(err.details || err.message);
+    client.close();
+  });
+  
+  call.on('end', () => {
+    client.close();
+  });
+}
