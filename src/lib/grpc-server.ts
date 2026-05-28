@@ -3,7 +3,7 @@ import * as protoLoader from '@grpc/proto-loader';
 import * as crypto from 'node:crypto';
 import path from 'path';
 import fs from 'fs';
-import { isPrivateOrReservedIp } from './ssrf';
+import { isPrivateOrReservedIp, validateOutboundUrl } from './ssrf';
 
 const PROTO_PATH = path.join(process.cwd(), 'src/lib/proto/download_hub.proto');
 const HEARTBEAT_TIMEOUT = 30000; // 30s without heartbeat = offline
@@ -195,7 +195,7 @@ function getDeviceDetailHandler(call: grpc.ServerUnaryCall<any, any>, callback: 
 
 // --- Download Task ---
 
-function submitDownloadHandler(call: any) {
+async function submitDownloadHandler(call: any) {
   const req = call.request;
 
   const sendEvent = (type: string, data: any) => {
@@ -222,6 +222,14 @@ function submitDownloadHandler(call: any) {
 
   sendEvent('state', { state: 'handshake', progress: 0 });
   sendEvent('log', { level: 'log', message: `[HUB] Task received: ${req.target_url}` });
+
+  const targetValidation = await validateOutboundUrl(req.target_url);
+  if (!targetValidation.valid) {
+    sendEvent('log', { level: 'error', message: `[HUB] ${targetValidation.error}` });
+    sendEvent('state', { state: 'failed', progress: 0 });
+    safeClose();
+    return;
+  }
 
   if (targetStorageId) {
     const storage = devices.get(targetStorageId)!;

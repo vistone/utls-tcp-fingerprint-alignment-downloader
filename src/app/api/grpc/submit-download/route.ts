@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { validateApiKey } from "@/lib/auth";
 import { createCorsHeaders, handleCorsPreflight } from "@/lib/sse-helper";
 import { submitDownload } from "@/lib/grpc-client";
+import { validateOutboundUrl } from "@/lib/ssrf";
 
 export async function OPTIONS() {
   return handleCorsPreflight();
@@ -17,12 +18,20 @@ export async function POST(request: NextRequest): Promise<Response> {
     });
   }
 
-  const { hubAddress, targetUrl, browserPreset, cdnType, storageDeviceId } = await request.json();
+  const { hubAddress, targetUrl, browserPreset, cdnType, storageDeviceId, storageServerId } = await request.json();
 
   if (!hubAddress || !targetUrl) {
     return new Response(
       JSON.stringify({ error: "Missing hubAddress or targetUrl" }),
       { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
+
+  const targetValidation = await validateOutboundUrl(targetUrl);
+  if (!targetValidation.valid) {
+    return new Response(
+      JSON.stringify({ error: targetValidation.error }),
+      { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 
@@ -38,7 +47,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
       submitDownload(
         hubAddress,
-        { targetUrl, browserPreset, cdnType, storageDeviceId },
+        { targetUrl, browserPreset, cdnType, storageDeviceId: storageDeviceId || storageServerId },
         (event) => send(event),
         (error) => { send({ type: "error", message: error }); closed = true; try { controller.close(); } catch (_) {} }
       );

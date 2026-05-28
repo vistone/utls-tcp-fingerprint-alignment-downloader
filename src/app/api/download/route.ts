@@ -7,7 +7,7 @@ import http from "http";
 import https from "https";
 import http2 from "http2";
 import { validateApiKey } from "@/lib/auth";
-import { isPrivateOrReservedIp, validateTargetNotPrivate } from "@/lib/ssrf";
+import { isPrivateOrReservedIp, validateOutboundUrl, validateResolvedIpsArePublic } from "@/lib/ssrf";
 import { createCorsHeaders, handleCorsPreflight, SendLogFn } from "@/lib/sse-helper";
 import {
   getLocalResolvedIps,
@@ -570,33 +570,12 @@ export async function POST(request: NextRequest): Promise<Response> {
     });
   }
 
-  let parsedTargetUrl: URL;
-  try {
-    parsedTargetUrl = new URL(targetUrl);
-  } catch {
-    return new Response(JSON.stringify({ error: "Invalid target URL format" }), {
-      status: 400,
+  const targetValidation = await validateOutboundUrl(targetUrl);
+  if (!targetValidation.valid) {
+    return new Response(JSON.stringify({ error: targetValidation.error }), {
+      status: 403,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
-  }
-
-  const targetHostname = parsedTargetUrl.hostname;
-
-  if (net.isIPv4(targetHostname) || net.isIPv6(targetHostname)) {
-    if (isPrivateOrReservedIp(targetHostname)) {
-      return new Response(JSON.stringify({ error: "Security rejection: Cannot access private/reserved IP directly" }), {
-        status: 403,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-  } else {
-    const validation = await validateTargetNotPrivate(targetHostname);
-    if (!validation.valid) {
-      return new Response(JSON.stringify({ error: validation.error }), {
-        status: 403,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
   }
 
   const encoder = new TextEncoder();
@@ -859,6 +838,14 @@ export async function POST(request: NextRequest): Promise<Response> {
           }
 
           if (resolvedIps && resolvedIps.length > 0) {
+            const publicIps = validateResolvedIpsArePublic(resolvedIps);
+            if (!publicIps.valid) {
+              sendLog("error", publicIps.error || "Security rejection: unsafe DNS result");
+              sendLog("state", "", { state: "failed" });
+              safeCloseStream(controller);
+              return;
+            }
+
             const lbLogs: string[] = [];
             lbResult = await selectBalancedIp(host, resolvedIps, lbStrategy, port, 1500, lbLogs);
             lbLogs.forEach((lg) => sendLog("log", lg));
