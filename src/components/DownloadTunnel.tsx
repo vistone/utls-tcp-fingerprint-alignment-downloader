@@ -14,6 +14,7 @@ interface DownloadTunnelProps {
   resetDownload: () => void;
   grpcEnabled?: boolean;
   grpcServerAddress?: string;
+  grpcStorageServerId?: string;
 }
 
 export default function DownloadTunnel({
@@ -26,6 +27,7 @@ export default function DownloadTunnel({
   resetDownload,
   grpcEnabled = false,
   grpcServerAddress = "",
+  grpcStorageServerId = "",
 }: DownloadTunnelProps) {
   const t = useTranslations("DownloadTunnel");
   const logRef = useRef<HTMLDivElement | null>(null);
@@ -48,7 +50,10 @@ export default function DownloadTunnel({
         <div className="text-[10px] font-mono text-gray-400 flex items-center gap-3">
           <span>{t("hostLabel")} {targetUrl.split("/")[2] || "target-cdn"}</span>
           {grpcEnabled && grpcServerAddress && (
-            <span className="text-orange-400 font-bold">→ gRPC: {grpcServerAddress}</span>
+            <span className="text-orange-400 font-bold">
+              → Hub: {grpcServerAddress}
+              {grpcStorageServerId && <span className="text-gray-500"> → Storage: {grpcStorageServerId}</span>}
+            </span>
           )}
         </div>
       </div>

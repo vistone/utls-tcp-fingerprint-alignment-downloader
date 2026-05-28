@@ -1,0 +1,154 @@
+syntax = "proto3";
+
+package downloadhub;
+
+service DownloadHub {
+  // Client registration
+  rpc RegisterClient (RegisterClientRequest) returns (RegisterClientResponse);
+  rpc UnregisterClient (UnregisterClientRequest) returns (UnregisterClientResponse);
+
+  // Storage server registration
+  rpc RegisterStorage (RegisterStorageRequest) returns (RegisterStorageResponse);
+  rpc UnregisterStorage (UnregisterStorageRequest) returns (UnregisterStorageResponse);
+
+  // Client/Storage management
+  rpc ListClients (ListClientsRequest) returns (ListClientsResponse);
+  rpc ListStorageServers (ListStorageRequest) returns (ListStorageResponse);
+
+  // Download task submission
+  rpc SubmitDownload (DownloadRequest) returns (stream DownloadEvent);
+
+  // Health check
+  rpc Ping (PingRequest) returns (PingResponse);
+}
+
+// Client (task sender) registration
+message RegisterClientRequest {
+  string name = 1;        // client name e.g. "Browser-CLI-01"
+  string secret = 2;      // optional auth token
+}
+
+message RegisterClientResponse {
+  bool success = 1;
+  string message = 2;
+  string client_id = 3;   // assigned by hub
+}
+
+message UnregisterClientRequest {
+  string client_id = 1;
+}
+
+message UnregisterClientResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Storage server registration
+message RegisterStorageRequest {
+  string name = 1;        // friendly name e.g. "NAS-01"
+  string address = 2;     // gRPC address e.g. "192.168.1.10:50051"
+  string secret = 3;      // optional auth token
+}
+
+message RegisterStorageResponse {
+  bool success = 1;
+  string message = 2;
+  string server_id = 3;   // assigned by hub
+}
+
+message UnregisterStorageRequest {
+  string server_id = 1;
+}
+
+message UnregisterStorageResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// List operations
+message ListClientsRequest {}
+
+message ListClientsResponse {
+  repeated ClientInfo clients = 1;
+}
+
+message ClientInfo {
+  string client_id = 1;
+  string name = 2;
+  int64 registered_at = 3;
+  int64 last_active = 4;
+  int32 tasks_submitted = 5;
+}
+
+message ListStorageRequest {}
+
+message ListStorageResponse {
+  repeated StorageServerInfo servers = 1;
+}
+
+message StorageServerInfo {
+  string server_id = 1;
+  string name = 2;
+  string address = 3;
+  int64 registered_at = 4;
+  string status = 5;
+}
+
+// Download task
+message DownloadRequest {
+  string target_url = 1;
+  string browser_preset = 2;
+  string user_agent = 3;
+  int32 tcp_ttl = 4;
+  int32 tcp_mss = 5;
+  int32 tcp_window_size = 6;
+  int32 h2_window_increment = 7;
+  bool connection_reuse = 8;
+  string cdn_type = 9;
+  // Target storage
+  string storage_server_id = 10;
+  // Client ID (filled by hub)
+  string client_id = 11;
+  // DNS configuration
+  bool dns_enabled = 12;
+  string dns_servers = 13;
+  int32 dns_timeout = 14;
+  bool dns_parallel = 15;
+  bool dns_cache_enabled = 16;
+  string dns_hosts = 17;
+  string lb_strategy = 18;
+}
+
+message DownloadEvent {
+  oneof event {
+    DownloadProgress progress = 1;
+    DownloadLog log = 2;
+    DownloadState state = 3;
+  }
+}
+
+message DownloadProgress {
+  float progress = 1;
+  float speed = 2;
+  int64 received = 3;
+  int64 total = 4;
+}
+
+message DownloadLog {
+  string level = 1;
+  string message = 2;
+}
+
+message DownloadState {
+  string state = 1;
+  float progress = 2;
+}
+
+// Health check
+message PingRequest {}
+
+message PingResponse {
+  bool alive = 1;
+  string server_id = 2;
+  int64 uptime = 3;
+}

@@ -152,7 +152,9 @@ export default function Page() {
   >("idle");
   const [downloadLog, setDownloadLog] = useState<string[]>([]);
   const [grpcEnabled, setGrpcEnabled] = useState(false);
-  const [grpcServerAddress, setGrpcServerAddress] = useState("");
+  const [grpcHubAddress, setGrpcHubAddress] = useState("localhost:50051");
+  const [grpcStorageServerId, setGrpcStorageServerId] = useState("");
+  const [storageServers, setStorageServers] = useState<{ serverId: string; name: string; address: string }[]>([]);
 
   const [downloadMode, setDownloadMode] = useState<"single" | "batch">("single");
   const [batchManifestUrl, setBatchManifestUrl] = useState("/example-manifest.json");
@@ -537,13 +539,14 @@ export default function Page() {
     setDownloadSpeed(0);
     setDownloadLog(["[ALIGN] Channel ready. Initiating relay handshake..."]);
 
-    const useGrpc = grpcEnabled && grpcServerAddress;
+    const useGrpc = grpcEnabled && grpcHubAddress;
     const apiUrl = useGrpc ? "/api/grpc/submit-download" : "/api/download";
     const bodyPayload = useGrpc ? {
-      serverAddress: grpcServerAddress,
+      hubAddress: grpcHubAddress,
       targetUrl,
       browserPreset,
       cdnType,
+      storageServerId: grpcStorageServerId,
     } : {
       targetUrl,
       userAgent: getUserAgent(),
@@ -831,8 +834,11 @@ export default function Page() {
             applyPresetConfig={applyPresetConfig}
             grpcEnabled={grpcEnabled}
             setGrpcEnabled={setGrpcEnabled}
-            grpcServerAddress={grpcServerAddress}
-            setGrpcServerAddress={setGrpcServerAddress}
+            grpcHubAddress={grpcHubAddress}
+            setGrpcHubAddress={setGrpcHubAddress}
+            grpcStorageServerId={grpcStorageServerId}
+            setGrpcStorageServerId={setGrpcStorageServerId}
+            storageServers={storageServers}
           />
           <DnsConfig
             dnsEnabled={dnsEnabled}
@@ -940,7 +946,8 @@ export default function Page() {
                       startTestDownload={startTestDownload}
                       resetDownload={resetDownload}
                       grpcEnabled={grpcEnabled}
-                      grpcServerAddress={grpcServerAddress}
+                      grpcServerAddress={grpcHubAddress}
+                      grpcStorageServerId={grpcStorageServerId}
                     />
                   </div>
                   <div className="lg:col-span-5 flex flex-col gap-6">

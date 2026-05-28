@@ -38,8 +38,11 @@ interface FingerprintConfigProps {
   applyPresetConfig: (preset: string) => void;
   grpcEnabled: boolean;
   setGrpcEnabled: (v: boolean) => void;
-  grpcServerAddress: string;
-  setGrpcServerAddress: (v: string) => void;
+  grpcHubAddress: string;
+  setGrpcHubAddress: (v: string) => void;
+  grpcStorageServerId: string;
+  setGrpcStorageServerId: (v: string) => void;
+  storageServers: { serverId: string; name: string; address: string }[];
 }
 
 export default function FingerprintConfig({
@@ -77,8 +80,11 @@ export default function FingerprintConfig({
   applyPresetConfig,
   grpcEnabled,
   setGrpcEnabled,
-  grpcServerAddress,
-  setGrpcServerAddress,
+  grpcHubAddress,
+  setGrpcHubAddress,
+  grpcStorageServerId,
+  setGrpcStorageServerId,
+  storageServers,
 }: FingerprintConfigProps) {
   const t = useTranslations("FingerprintConfig");
   return (
@@ -275,14 +281,25 @@ export default function FingerprintConfig({
             </div>
             {grpcEnabled && (
               <div className="space-y-1.5 pt-2">
-                <label className="text-[9px] text-gray-500 block">{t("grpcRemoteAddress", { defaultMessage: "Remote Server Address" })}</label>
+                <label className="text-[9px] text-gray-500 block">{t("grpcHubAddress")}</label>
                 <input
                   type="text"
-                  value={grpcServerAddress}
-                  onChange={(e) => setGrpcServerAddress(e.target.value)}
-                  placeholder="192.168.1.10:50051"
+                  value={grpcHubAddress}
+                  onChange={(e) => setGrpcHubAddress(e.target.value)}
+                  placeholder="localhost:50051"
                   className="w-full bg-[#111116] border border-[#2d2d35] rounded px-2.5 py-1.5 text-orange-300 focus:outline-none focus:border-orange-500 text-xs font-mono"
                 />
+                <label className="text-[9px] text-gray-500 block">{t("grpcStorageServer")}</label>
+                <select
+                  value={grpcStorageServerId}
+                  onChange={(e) => setGrpcStorageServerId(e.target.value)}
+                  className="w-full bg-[#111116] border border-[#2d2d35] rounded px-2.5 py-1.5 text-orange-300 focus:outline-none focus:border-orange-500 text-xs font-mono"
+                >
+                  <option value="">{t("grpcSelectStorage")}</option>
+                  {storageServers.map((s) => (
+                    <option key={s.serverId} value={s.serverId}>{s.name} ({s.address})</option>
+                  ))}
+                </select>
                 <p className="text-[9px] text-gray-600">{t("grpcHint")}</p>
               </div>
             )}

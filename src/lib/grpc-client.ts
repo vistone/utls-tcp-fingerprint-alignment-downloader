@@ -2,108 +2,147 @@ import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 import path from 'path';
 
-const PROTO_PATH = path.join(process.cwd(), 'src/lib/proto/file_transfer.proto');
+const PROTO_PATH = path.join(process.cwd(), 'src/lib/proto/download_hub.proto');
 
-// Load proto definition
-let FileTransferService: grpc.ServiceClientConstructor | null = null;
+let HubService: grpc.ServiceClientConstructor | null = null;
 
-function getService(): grpc.ServiceClientConstructor {
-  if (FileTransferService) return FileTransferService;
-  
+function getHubService(): grpc.ServiceClientConstructor {
+  if (HubService) return HubService;
   const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
-    keepCase: true,
-    longs: String,
-    enums: String,
-    defaults: true,
-    oneofs: true,
+    keepCase: true, longs: String, enums: String, defaults: true, oneofs: true,
   });
-  
   const proto = grpc.loadPackageDefinition(packageDefinition) as any;
-  FileTransferService = proto.filetransfer.FileTransfer;
-  return FileTransferService!;
+  HubService = proto.downloadhub.DownloadHub;
+  return HubService!;
 }
 
-export interface PushFileOptions {
-  serverAddress: string;  // e.g. "192.168.1.10:50051"
-  filename: string;
-  data: Buffer;
-  mimeType: string;
-  metadata?: Record<string, string>;
-  timeoutMs?: number;
+function createHubClient(hubAddress: string): any {
+  const Service = getHubService();
+  return new Service(hubAddress, grpc.credentials.createInsecure());
 }
 
-export interface PushFileResult {
-  success: boolean;
-  message: string;
-  fileId?: string;
-  storagePath?: string;
+// --- Client Registration (task sender) ---
+
+export interface RegisterClientParams {
+  hubAddress: string;
+  name: string;
+  secret?: string;
 }
 
-export function pushFile(options: PushFileOptions): Promise<PushFileResult> {
-  const { serverAddress, filename, data, mimeType, metadata = {}, timeoutMs = 30000 } = options;
-  
+export function registerClient(params: RegisterClientParams): Promise<{ success: boolean; message: string; clientId?: string }> {
   return new Promise((resolve) => {
-    const Service = getService();
-    const client = new Service(serverAddress, grpc.credentials.createInsecure());
-    
-    const deadline = new Date();
-    deadline.setMilliseconds(deadline.getMilliseconds() + timeoutMs);
-    
-    const fileRequest = {
-      filename,
-      data,
-      mime_type: mimeType,
-      metadata,
-      timestamp: Date.now(),
-    };
-    
-    client.PushFile(fileRequest, { deadline }, (err: any, response: any) => {
+    const client = createHubClient(params.hubAddress);
+    client.RegisterClient({ name: params.name, secret: params.secret || '' }, (err: any, response: any) => {
       client.close();
       if (err) {
-        resolve({
-          success: false,
-          message: `gRPC push failed: ${err.details || err.message}`,
-        });
+        resolve({ success: false, message: `Registration failed: ${err.details || err.message}` });
         return;
       }
-      resolve({
-        success: response.success,
-        message: response.message,
-        fileId: response.file_id,
-        storagePath: response.storage_path,
-      });
+      resolve({ success: response.success, message: response.message, clientId: response.client_id });
     });
   });
 }
 
-export interface PingResult {
-  alive: boolean;
-  serverId?: string;
-  uptime?: number;
-}
-
-export function pingServer(serverAddress: string, timeoutMs = 5000): Promise<PingResult> {
+export function unregisterClient(hubAddress: string, clientId: string): Promise<{ success: boolean; message: string }> {
   return new Promise((resolve) => {
-    const Service = getService();
-    const client = new Service(serverAddress, grpc.credentials.createInsecure());
-    
-    const deadline = new Date();
-    deadline.setMilliseconds(deadline.getMilliseconds() + timeoutMs);
-    
-    client.Ping({}, { deadline }, (err: any, response: any) => {
+    const client = createHubClient(hubAddress);
+    client.UnregisterClient({ client_id: clientId }, (err: any, response: any) => {
       client.close();
       if (err) {
-        resolve({ alive: false });
+        resolve({ success: false, message: err.details || err.message });
         return;
       }
-      resolve({
-        alive: response.alive,
-        serverId: response.server_id,
-        uptime: response.uptime,
-      });
+      resolve({ success: response.success, message: response.message });
     });
   });
 }
+
+export interface ClientInfo {
+  clientId: string;
+  name: string;
+  registeredAt: number;
+  lastActive: number;
+  tasksSubmitted: number;
+}
+
+export function listClients(hubAddress: string): Promise<ClientInfo[]> {
+  return new Promise((resolve) => {
+    const client = createHubClient(hubAddress);
+    client.ListClients({}, (err: any, response: any) => {
+      client.close();
+      if (err) { resolve([]); return; }
+      resolve((response.clients || []).map((c: any) => ({
+        clientId: c.client_id,
+        name: c.name,
+        registeredAt: c.registered_at,
+        lastActive: c.last_active,
+        tasksSubmitted: c.tasks_submitted,
+      })));
+    });
+  });
+}
+
+// --- Storage Registration ---
+
+export interface RegisterStorageParams {
+  hubAddress: string;
+  name: string;
+  address: string;
+  secret?: string;
+}
+
+export function registerStorage(params: RegisterStorageParams): Promise<{ success: boolean; message: string; serverId?: string }> {
+  return new Promise((resolve) => {
+    const client = createHubClient(params.hubAddress);
+    client.RegisterStorage({ name: params.name, address: params.address, secret: params.secret || '' }, (err: any, response: any) => {
+      client.close();
+      if (err) {
+        resolve({ success: false, message: `Registration failed: ${err.details || err.message}` });
+        return;
+      }
+      resolve({ success: response.success, message: response.message, serverId: response.server_id });
+    });
+  });
+}
+
+export function unregisterStorage(hubAddress: string, serverId: string): Promise<{ success: boolean; message: string }> {
+  return new Promise((resolve) => {
+    const client = createHubClient(hubAddress);
+    client.UnregisterStorage({ server_id: serverId }, (err: any, response: any) => {
+      client.close();
+      if (err) {
+        resolve({ success: false, message: err.details || err.message });
+        return;
+      }
+      resolve({ success: response.success, message: response.message });
+    });
+  });
+}
+
+export interface StorageServerInfo {
+  serverId: string;
+  name: string;
+  address: string;
+  registeredAt: number;
+}
+
+export function listStorageServers(hubAddress: string): Promise<StorageServerInfo[]> {
+  return new Promise((resolve) => {
+    const client = createHubClient(hubAddress);
+    client.ListStorageServers({}, (err: any, response: any) => {
+      client.close();
+      if (err) { resolve([]); return; }
+      resolve((response.servers || []).map((s: any) => ({
+        serverId: s.server_id,
+        name: s.name,
+        address: s.address,
+        registeredAt: s.registered_at,
+      })));
+    });
+  });
+}
+
+// --- Download Task ---
 
 export interface DownloadTaskParams {
   targetUrl: string;
@@ -115,35 +154,23 @@ export interface DownloadTaskParams {
   h2WindowIncrement?: number;
   connectionReuse?: boolean;
   cdnType?: string;
-  grpcPushEnabled?: boolean;
-  grpcPushServer?: string;
+  storageServerId?: string;
+  clientId?: string;
 }
 
-export type DownloadEvent = {
-  type: 'progress';
-  progress: number;
-  speed: number;
-  received: number;
-  total: number;
-} | {
-  type: 'log';
-  level: string;
-  message: string;
-} | {
-  type: 'state';
-  state: string;
-  progress: number;
-};
+export type DownloadEvent =
+  | { type: 'progress'; progress: number; speed: number; received: number; total: number }
+  | { type: 'log'; level: string; message: string }
+  | { type: 'state'; state: string; progress: number };
 
 export function submitDownload(
-  serverAddress: string,
+  hubAddress: string,
   params: DownloadTaskParams,
   onEvent: (event: DownloadEvent) => void,
   onError?: (error: string) => void,
 ): void {
-  const Service = getService();
-  const client = new Service(serverAddress, grpc.credentials.createInsecure());
-  
+  const client = createHubClient(hubAddress);
+
   const request = {
     target_url: params.targetUrl,
     browser_preset: params.browserPreset || 'chrome',
@@ -153,17 +180,16 @@ export function submitDownload(
     tcp_window_size: params.tcpWindowSize || 65535,
     h2_window_increment: params.h2WindowIncrement || 6291456,
     connection_reuse: params.connectionReuse ?? true,
-    use_proxy: false,
     cdn_type: params.cdnType || 'cloudflare',
-    grpc_push_enabled: params.grpcPushEnabled ?? false,
-    grpc_push_server: params.grpcPushServer || '',
+    storage_server_id: params.storageServerId || '',
+    client_id: params.clientId || '',
   };
-  
+
   const deadline = new Date();
-  deadline.setMilliseconds(deadline.getMilliseconds() + 300000); // 5 min timeout
-  
+  deadline.setMilliseconds(deadline.getMilliseconds() + 300000);
+
   const call = client.SubmitDownload(request, { deadline });
-  
+
   call.on('data', (event: any) => {
     if (event.progress) {
       onEvent({ type: 'progress', ...event.progress });
@@ -173,13 +199,26 @@ export function submitDownload(
       onEvent({ type: 'state', state: event.state.state, progress: event.state.progress });
     }
   });
-  
+
   call.on('error', (err: any) => {
     onError?.(err.details || err.message);
     client.close();
   });
-  
+
   call.on('end', () => {
     client.close();
+  });
+}
+
+// --- Health Check ---
+
+export function pingHub(hubAddress: string): Promise<{ alive: boolean; serverId?: string; uptime?: number }> {
+  return new Promise((resolve) => {
+    const client = createHubClient(hubAddress);
+    client.Ping({}, { deadline: new Date(Date.now() + 5000) }, (err: any, response: any) => {
+      client.close();
+      if (err) { resolve({ alive: false }); return; }
+      resolve({ alive: response.alive, serverId: response.server_id, uptime: response.uptime });
+    });
   });
 }
