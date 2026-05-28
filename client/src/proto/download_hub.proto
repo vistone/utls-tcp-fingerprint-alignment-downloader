@@ -1,0 +1,196 @@
+syntax = "proto3";
+
+package downloadhub;
+
+// =============================================
+// Download Hub Service - Central coordinator
+// =============================================
+service DownloadHub {
+
+  // === Device Registration ===
+  // Task senders connect and register
+  rpc RegisterTaskClient (RegisterRequest) returns (RegisterResponse);
+  // Storage servers connect and register
+  rpc RegisterStorageServer (RegisterRequest) returns (RegisterResponse);
+  // Device heartbeat (keepalive + status report)
+  rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse);
+  // Device disconnect
+  rpc UnregisterDevice (UnregisterRequest) returns (UnregisterResponse);
+
+  // === Management ===
+  rpc ListDevices (ListDevicesRequest) returns (ListDevicesResponse);
+  rpc GetDeviceDetail (GetDeviceDetailRequest) returns (GetDeviceDetailResponse);
+
+  // === Download Tasks ===
+  rpc SubmitDownload (DownloadRequest) returns (stream DownloadEvent);
+
+  // === Health ===
+  rpc Ping (PingRequest) returns (PingResponse);
+}
+
+// =============================================
+// Device Info - Reported at registration
+// =============================================
+message DeviceInfo {
+  string device_name = 1;     // friendly name e.g. "NAS-01"
+  string ip_address = 2;      // public IP detected
+  string os = 3;              // "windows", "linux", "macos", "docker"
+  string hostname = 4;        // machine hostname
+  string version = 5;         // software version
+  map<string, string> capabilities = 6; // e.g. {"max_storage": "500GB"}
+}
+
+// =============================================
+// Registration
+// =============================================
+message RegisterRequest {
+  DeviceInfo info = 1;
+  string secret = 2;         // auth token
+}
+
+message RegisterResponse {
+  bool success = 1;
+  string message = 2;
+  string device_id = 3;      // assigned by hub
+}
+
+// =============================================
+// Heartbeat - Keepalive + Status Report
+// =============================================
+message HeartbeatRequest {
+  string device_id = 1;
+  DeviceStatus status = 2;
+}
+
+message DeviceStatus {
+  string state = 1;          // "online", "busy", "degraded", "offline"
+  string message = 2;        // human-readable status
+  int64 uptime = 3;          // device uptime in seconds
+  int32 active_tasks = 4;    // current active tasks
+  int32 max_tasks = 5;       // capacity
+  float cpu_usage = 6;       // 0-100
+  float memory_usage = 7;    // 0-100
+  float disk_usage = 8;      // 0-100
+  map<string, string> extra = 9; // additional metrics
+}
+
+message HeartbeatResponse {
+  bool success = 1;
+  string hub_time = 2;       // server time
+}
+
+// =============================================
+// Unregister
+// =============================================
+message UnregisterRequest {
+  string device_id = 1;
+}
+
+message UnregisterResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// =============================================
+// Device Listing
+// =============================================
+message ListDevicesRequest {
+  string device_type = 1;    // filter: "task_client" | "storage_server" | "" (all)
+}
+
+message ListDevicesResponse {
+  repeated DeviceRecord devices = 1;
+}
+
+message DeviceRecord {
+  string device_id = 1;
+  string device_type = 2;    // "task_client" or "storage_server"
+  DeviceInfo info = 3;
+  DeviceStatus status = 4;
+  int64 registered_at = 5;
+  int64 last_heartbeat = 6;
+  string connection_state = 7; // "online", "offline", "unregistered"
+}
+
+// =============================================
+// Device Detail
+// =============================================
+message GetDeviceDetailRequest {
+  string device_id = 1;
+}
+
+message GetDeviceDetailResponse {
+  DeviceRecord device = 1;
+  repeated DownloadTaskRecord tasks = 2;
+}
+
+message DownloadTaskRecord {
+  string task_id = 1;
+  string target_url = 2;
+  string status = 3;
+  int64 started_at = 4;
+  int64 completed_at = 5;
+  string storage_result = 6;
+}
+
+// =============================================
+// Download Tasks
+// =============================================
+message DownloadRequest {
+  string target_url = 1;
+  string browser_preset = 2;
+  string user_agent = 3;
+  int32 tcp_ttl = 4;
+  int32 tcp_mss = 5;
+  int32 tcp_window_size = 6;
+  int32 h2_window_increment = 7;
+  bool connection_reuse = 8;
+  string cdn_type = 9;
+  string storage_device_id = 10;  // target storage
+  // DNS
+  bool dns_enabled = 11;
+  string dns_servers = 12;
+  int32 dns_timeout = 13;
+  bool dns_parallel = 14;
+  bool dns_cache_enabled = 15;
+  string dns_hosts = 16;
+  string lb_strategy = 17;
+}
+
+message DownloadEvent {
+  oneof event {
+    DownloadProgress progress = 1;
+    DownloadLog log = 2;
+    DownloadState state = 3;
+  }
+}
+
+message DownloadProgress {
+  float progress = 1;
+  float speed = 2;
+  int64 received = 3;
+  int64 total = 4;
+}
+
+message DownloadLog {
+  string level = 1;
+  string message = 2;
+}
+
+message DownloadState {
+  string state = 1;
+  float progress = 2;
+}
+
+// =============================================
+// Health
+// =============================================
+message PingRequest {}
+
+message PingResponse {
+  bool alive = 1;
+  string server_id = 2;
+  int64 uptime = 3;
+  int32 connected_clients = 4;
+  int32 connected_storage = 5;
+}

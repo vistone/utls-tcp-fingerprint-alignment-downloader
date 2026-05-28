@@ -1,0 +1,20 @@
+{
+  "name": "download-hub-client",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone Download Hub Task Client - connects to Hub, submits download tasks, pushes to storage",
+  "scripts": {
+    "start": "tsx src/task-client.ts",
+    "submit": "tsx src/task-client-submit.ts"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.13.2",
+    "@grpc/proto-loader": "^0.7.13"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "tsx": "^4.21.0",
+    "typescript": "~5.8.2"
+  }
+}
