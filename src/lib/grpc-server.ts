@@ -2,6 +2,7 @@ import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 import path from 'path';
 import fs from 'fs';
+import { validateOutboundUrl } from './ssrf';
 
 const PROTO_PATH = path.join(process.cwd(), 'src/lib/proto/download_hub.proto');
 const HEARTBEAT_TIMEOUT = 30000; // 30s without heartbeat = offline
@@ -193,7 +194,7 @@ function getDeviceDetailHandler(call: grpc.ServerUnaryCall<any, any>, callback: 
 
 // --- Download Task ---
 
-function submitDownloadHandler(call: any) {
+async function submitDownloadHandler(call: any) {
   const req = call.request;
 
   const sendEvent = (type: string, data: any) => {
@@ -220,6 +221,14 @@ function submitDownloadHandler(call: any) {
 
   sendEvent('state', { state: 'handshake', progress: 0 });
   sendEvent('log', { level: 'log', message: `[HUB] Task received: ${req.target_url}` });
+
+  const targetValidation = await validateOutboundUrl(req.target_url);
+  if (!targetValidation.valid) {
+    sendEvent('log', { level: 'error', message: `[HUB] ${targetValidation.error}` });
+    sendEvent('state', { state: 'failed', progress: 0 });
+    safeClose();
+    return;
+  }
 
   if (targetStorageId) {
     const storage = devices.get(targetStorageId)!;
@@ -297,7 +306,7 @@ function submitDownloadHandler(call: any) {
       // Save locally
       const storageDir = path.join(process.cwd(), 'storage');
       if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
-      const filename = new URL(req.target_url).pathname.split('/').pop() || 'download';
+      const filename = path.basename(new URL(req.target_url).pathname) || 'download';
       const localPath = path.join(storageDir, filename);
       const fileData = Buffer.concat(chunks);
       fs.writeFileSync(localPath, fileData);

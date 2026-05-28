@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs";
 import { validateApiKey } from "@/lib/auth";
 import { jsonResponse, errorResponse, handleCorsPreflight, createCorsHeaders } from "@/lib/sse-helper";
+import { validateOutboundUrl } from "@/lib/ssrf";
 
 export async function OPTIONS() {
   return handleCorsPreflight();
@@ -40,6 +41,11 @@ export async function POST(request: NextRequest): Promise<Response> {
       const fsPromises = await import("fs/promises");
       jsonContent = await fsPromises.readFile(fullPath, "utf-8");
     } else {
+      const manifestValidation = await validateOutboundUrl(manifestUrl);
+      if (!manifestValidation.valid) {
+        return errorResponse(manifestValidation.error || "Manifest URL rejected", 403);
+      }
+
       const abortController = new AbortController();
       const fetchTimeout = setTimeout(() => abortController.abort(), 15000);
       try {

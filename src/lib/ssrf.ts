@@ -2,7 +2,7 @@ import net from "net";
 import dns from "dns";
 
 export function isPrivateOrReservedIp(ip: string): boolean {
-  const cleanIp = ip.replace(/^::ffff:/, "");
+  const cleanIp = ip.trim().replace(/^\[(.*)\]$/, "$1").toLowerCase().replace(/^::ffff:/, "");
 
   if (net.isIPv4(cleanIp)) {
     const parts = cleanIp.split(".").map(Number);
@@ -26,7 +26,7 @@ export function isPrivateOrReservedIp(ip: string): boolean {
   if (net.isIPv6(cleanIp)) {
     if (cleanIp === "::1") return true;
     if (cleanIp.startsWith("fc") || cleanIp.startsWith("fd")) return true;
-    if (cleanIp.startsWith("fe80")) return true;
+    if (cleanIp.startsWith("fe80") || cleanIp.startsWith("fe90") || cleanIp.startsWith("fea0") || cleanIp.startsWith("feb0")) return true;
     if (cleanIp.startsWith("::ffff:")) return true;
     if (cleanIp === "::") return true;
     if (cleanIp.startsWith("100::")) return true;
@@ -35,6 +35,58 @@ export function isPrivateOrReservedIp(ip: string): boolean {
   }
 
   return false;
+}
+
+export type OutboundUrlValidation = {
+  valid: boolean;
+  url?: URL;
+  error?: string;
+};
+
+export async function validateOutboundUrl(rawUrl: string): Promise<OutboundUrlValidation> {
+  if (!rawUrl || typeof rawUrl !== "string") {
+    return { valid: false, error: "Missing URL" };
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return { valid: false, error: "Invalid URL format" };
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return { valid: false, error: "Only http and https URLs are allowed" };
+  }
+
+  const hostname = parsed.hostname;
+  const cleanHostname = hostname.replace(/^\[(.*)\]$/, "$1");
+  if (!cleanHostname) {
+    return { valid: false, error: "URL hostname is required" };
+  }
+
+  if (net.isIPv4(cleanHostname) || net.isIPv6(cleanHostname)) {
+    if (isPrivateOrReservedIp(cleanHostname)) {
+      return { valid: false, error: "Security rejection: Cannot access private/reserved IP directly" };
+    }
+    return { valid: true, url: parsed };
+  }
+
+  const validation = await validateTargetNotPrivate(cleanHostname);
+  if (!validation.valid) {
+    return { valid: false, error: validation.error };
+  }
+
+  return { valid: true, url: parsed };
+}
+
+export function validateResolvedIpsArePublic(ips: string[]): { valid: boolean; error?: string } {
+  for (const ip of ips) {
+    if (isPrivateOrReservedIp(ip)) {
+      return { valid: false, error: `Security rejection: Resolved address is private/reserved (${ip})` };
+    }
+  }
+  return { valid: true };
 }
 
 export async function validateTargetNotPrivate(hostname: string): Promise<{ valid: boolean; error?: string }> {

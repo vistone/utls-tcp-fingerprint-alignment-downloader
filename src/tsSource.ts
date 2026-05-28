@@ -234,22 +234,33 @@ function wrapWithBufferLimit(socket: net.Socket, winSize: number) {
   ciphersCount: string; // Number of unique cipher suites
   extensionsCount: string; // Number of extensions
   alpnFirstChars: string; // e.g. "h2"
+  ciphers?: string[];
+  extensions?: string[];
 }
 
 /**
  * 模拟将选定的浏览器配置动态换算并还原为正式的 JA4 指纹标签
  */
 export function buildJA4Fingerprint(record: JA4Record): string {
-  const { protocol, tlsVersion, sniIndicator, ciphersCount, extensionsCount, alpnFirstChars } = record;
+  const { protocol, tlsVersion, sniIndicator, ciphersCount, extensionsCount, alpnFirstChars, ciphers, extensions } = record;
   
   // 第一部分 (10位): w + TLS版本 + SNI形式 + 密码数 + 扩展数 + ALPN前两位
   const partA = \`\${protocol}\${tlsVersion}\${sniIndicator}\${ciphersCount.padStart(2, "0")}\${extensionsCount.padStart(2, "0")}\${alpnFirstChars}\`;
   
-  // 第二部分 (12位): 特有哈希计算。这里通过模拟真实哈希对齐，表达安全特征
-  const partB = "12140f0d2381";
+  let partB = "12140f0d2381";
+  let partC = "200dd0039f9b";
   
-  // 第三部分 (12位): 扩展集排序哈希
-  const partC = "200dd0039f9b";
+  // 当提供密码套件列表时计算真实的Part B哈希
+  if (ciphers && ciphers.length > 0) {
+    const sortedCiphers = [...ciphers].sort().join(",");
+    partB = require("crypto").createHash("sha256").update(sortedCiphers).digest("hex").slice(0, 12);
+  }
+  
+  // 当提供扩展列表时计算真实的Part C哈希
+  if (extensions && extensions.length > 0) {
+    const sortedExtensions = [...extensions].sort().join(",");
+    partC = require("crypto").createHash("sha256").update(sortedExtensions).digest("hex").slice(0, 12);
+  }
   
   // 四合一标准指纹
   return \`\${partA}_\${partB}_\${partC}\`.toLowerCase();
@@ -273,7 +284,11 @@ export function evaluateFingerprintAlignment(userAgent: string, ja4String: strin
     score -= 30;
   }
   if (os === "macos" && !uaLower.includes("macintosh")) {
-    warnings.push("❌ [高危行为] TCP层为 MacOS 级别 MTU/TTL，但 User-Agent 宣称为 Windows/Android！");
+    warnings.push("❌ [高危行为] TCP层为 MacOS 级别 MTU/TTL，但 User-Agent 宣称为非 macOS 系统！");
+    score -= 30;
+  }
+  if (os === "linux" && !uaLower.includes("linux") && !uaLower.includes("x11") && !uaLower.includes("ubuntu") && !uaLower.includes("debian") && !uaLower.includes("fedora")) {
+    warnings.push("❌ [高危行为] TCP层为 Linux 指纹，但 User-Agent 未标示为 Linux 系统！");
     score -= 30;
   }
 
@@ -293,20 +308,38 @@ export function evaluateFingerprintAlignment(userAgent: string, ja4String: strin
   }
 };
 
-interface JA4Record {
+import { createHash } from "crypto";
+
+export interface JA4Record {
   protocol: "t" | "q";
   tlsVersion: string;
   sniIndicator: "d" | "i";
   ciphersCount: string;
   extensionsCount: string;
   alpnFirstChars: string;
+  ciphers?: string[];
+  extensions?: string[];
 }
 
 export function buildJA4Fingerprint(record: JA4Record): string {
-  const { protocol, tlsVersion, sniIndicator, ciphersCount, extensionsCount, alpnFirstChars } = record;
+  const { protocol, tlsVersion, sniIndicator, ciphersCount, extensionsCount, alpnFirstChars, ciphers, extensions } = record;
   const partA = `${protocol}${tlsVersion}${sniIndicator}${ciphersCount.padStart(2, "0")}${extensionsCount.padStart(2, "0")}${alpnFirstChars}`;
-  const partB = "12140f0d2381";
-  const partC = "200dd0039f9b";
+  
+  let partB = "12140f0d2381";
+  let partC = "200dd0039f9b";
+  
+  // 当提供密码套件列表时计算真实的Part B哈希
+  if (ciphers && ciphers.length > 0) {
+    const sortedCiphers = [...ciphers].sort().join(",");
+    partB = createHash("sha256").update(sortedCiphers).digest("hex").slice(0, 12);
+  }
+  
+  // 当提供扩展列表时计算真实的Part C哈希
+  if (extensions && extensions.length > 0) {
+    const sortedExtensions = [...extensions].sort().join(",");
+    partC = createHash("sha256").update(sortedExtensions).digest("hex").slice(0, 12);
+  }
+  
   return `${partA}_${partB}_${partC}`.toLowerCase();
 }
 
@@ -325,6 +358,14 @@ export function evaluateFingerprintAlignment(userAgent: string, ja4String: strin
   }
   if (os === "macos" && !uaLower.includes("macintosh")) {
     warnings.push("❌ [高危行为] TCP层为 MacOS 级别 MTU/TTL，但 User-Agent 标示为非 macOS 系统！");
+    score -= 30;
+  }
+  if (os === "linux" && !uaLower.includes("linux") && !uaLower.includes("x11") && !uaLower.includes("ubuntu") && !uaLower.includes("debian") && !uaLower.includes("fedora")) {
+    warnings.push("❌ [高危行为] TCP层为 Linux 指纹，但 User-Agent 未标示为 Linux 系统！");
+    score -= 30;
+  }
+  if (os === "linux" && !uaLower.includes("linux") && !uaLower.includes("x11") && !uaLower.includes("ubuntu") && !uaLower.includes("debian") && !uaLower.includes("fedora")) {
+    warnings.push("❌ [高危行为] TCP层为 Linux 指纹，但 User-Agent 未标示为 Linux 系统！");
     score -= 30;
   }
 
@@ -357,7 +398,7 @@ export const BROWSER_TLS_SPECS: Record<string, BrowserTLSSpec> = {
     name: "Chrome v124 (Latest)",
     userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     ciphersCount: "15",
-    extensionsCount: "19",
+    extensionsCount: "16",
     alpn: "h2",
     ja3Hash: "a1435ff20b33da15494191fe82c9f4d1",
     defaultH2Window: 6291456,
@@ -385,7 +426,7 @@ export const BROWSER_TLS_SPECS: Record<string, BrowserTLSSpec> = {
     name: "Chrome v115 (Stable)",
     userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
     ciphersCount: "14",
-    extensionsCount: "18",
+    extensionsCount: "13",
     alpn: "h2",
     ja3Hash: "542a27b87834bc6ad7ca536341f3918f",
     defaultH2Window: 6291456,
@@ -410,7 +451,7 @@ export const BROWSER_TLS_SPECS: Record<string, BrowserTLSSpec> = {
     name: "Chrome v100 (Legacy v100)",
     userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.75 Safari/537.36",
     ciphersCount: "13",
-    extensionsCount: "16",
+    extensionsCount: "10",
     alpn: "h2",
     ja3Hash: "4b986b62371cb1edda4a2c0aa558dc98",
     defaultH2Window: 6291456,
@@ -432,7 +473,7 @@ export const BROWSER_TLS_SPECS: Record<string, BrowserTLSSpec> = {
     name: "Chrome v88 (Pre-h2 Tuning)",
     userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.190 Safari/537.36",
     ciphersCount: "12",
-    extensionsCount: "15",
+    extensionsCount: "8",
     alpn: "h2",
     ja3Hash: "b21ab8a0ec49b0def25ee8200b39fbcc",
     defaultH2Window: 6291456,
@@ -452,7 +493,7 @@ export const BROWSER_TLS_SPECS: Record<string, BrowserTLSSpec> = {
     name: "Firefox v120 (Latest)",
     userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
     ciphersCount: "17",
-    extensionsCount: "16",
+    extensionsCount: "13",
     alpn: "h2",
     ja3Hash: "c0aaefce3111bdf8cc238b100fa1cbae",
     defaultH2Window: 12582912,
@@ -477,7 +518,7 @@ export const BROWSER_TLS_SPECS: Record<string, BrowserTLSSpec> = {
     name: "Firefox v110 (Stable)",
     userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:110.0) Gecko/20100101 Firefox/110.0",
     ciphersCount: "16",
-    extensionsCount: "15",
+    extensionsCount: "9",
     alpn: "h2",
     ja3Hash: "2b9fd08a6e87bc12d09ffab7bdfcd3ee",
     defaultH2Window: 12582912,
@@ -498,7 +539,7 @@ export const BROWSER_TLS_SPECS: Record<string, BrowserTLSSpec> = {
     name: "Firefox v90 (Legacy ESR)",
     userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0",
     ciphersCount: "15",
-    extensionsCount: "13",
+    extensionsCount: "7",
     alpn: "h2",
     ja3Hash: "900aefdf9aa3cc0091aafe097a8bcdef",
     defaultH2Window: 12582912,
@@ -517,7 +558,7 @@ export const BROWSER_TLS_SPECS: Record<string, BrowserTLSSpec> = {
     name: "Safari v17.2 (macOS Sonoma)",
     userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
     ciphersCount: "16",
-    extensionsCount: "18",
+    extensionsCount: "12",
     alpn: "h2",
     ja3Hash: "f98aac0e439f0faea27cb9bc100eaebf",
     defaultH2Window: 2097152,
@@ -532,7 +573,7 @@ export const BROWSER_TLS_SPECS: Record<string, BrowserTLSSpec> = {
       "0x0033 (key_share) - 现代椭圆曲线（X25519）即时密钥协商参数",
       "0x000a (supported_groups) - Apple专有X25519优先序列偏好",
       "0x000b (ec_point_formats) - 支持点压强对齐",
-      "0x000d (signature_algorithms_cert) - 针对对端证书链特别定制的签名套件指纹",
+      "0x0032 (signature_algorithms_cert) - 针对对端证书链特别定制的签名套件指纹",
       "0x0021 (use_srtp) - 对 WebRTC 底层多媒体安全通道支持探测",
       "0xff01 (renegotiation_info) - 协商兼容层防注入"
     ]
@@ -541,7 +582,7 @@ export const BROWSER_TLS_SPECS: Record<string, BrowserTLSSpec> = {
     name: "Safari v15.4 (macOS Monterey)",
     userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Safari/605.1.15",
     ciphersCount: "14",
-    extensionsCount: "16",
+    extensionsCount: "8",
     alpn: "h2",
     ja3Hash: "a490bacd93fedae23db8ea477bcda311",
     defaultH2Window: 2097152,
@@ -561,7 +602,7 @@ export const BROWSER_TLS_SPECS: Record<string, BrowserTLSSpec> = {
     name: "Safari v13.1 (macOS Catalina)",
     userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1 Safari/605.1.15",
     ciphersCount: "13",
-    extensionsCount: "14",
+    extensionsCount: "6",
     alpn: "h2",
     ja3Hash: "7b0aae91e98829fde0cd94871bbbf10f",
     defaultH2Window: 1048576,
@@ -570,7 +611,7 @@ export const BROWSER_TLS_SPECS: Record<string, BrowserTLSSpec> = {
       "0x0000 (server_name) - 声明目标虚拟主机域名",
       "0x000d (signature_algorithms) - 密钥指纹签名套层 SHA256/SHA384/ECDSA",
       "0x0010 (application_layer_protocol_negotiation) - ALPN [h2]",
-      "0x002b (supported_versions) - 仅包含传统TLS 1.2安全支持套件",
+      "0x002b (supported_versions) - 包含TLS 1.3和TLS 1.2安全支持套件",
       "0x0033 (key_share) - 传统主安全段椭圆密钥切片结构",
       "0xff01 (renegotiation_info) - 协商兼容层防注入"
     ]
