@@ -359,7 +359,9 @@ async function pushToStorage(
   const FTService = proto.filetransfer.FileTransfer;
 
   return new Promise((resolve) => {
-    const client = new FTService(address, grpc.credentials.createInsecure());
+    const client = new FTService(address, grpc.credentials.createInsecure(), {
+      'grpc.max_send_message_length': 1024 * 1024 * 1024,
+    });
     const deadline = new Date();
     deadline.setMilliseconds(deadline.getMilliseconds() + 60000);
 

@@ -1,14 +1,37 @@
 {
   "files": {
-    "1779958111113-abee8c20": {
-      "id": "1779958111113-abee8c20",
-      "filename": "hello.txt",
+    "1779959477029-87f10baf": {
+      "id": "1779959477029-87f10baf",
+      "filename": "test.txt",
       "mimeType": "text/plain",
-      "size": 15,
-      "storedAt": 1779958111117,
+      "size": 4,
+      "storedAt": 1779959477033,
       "metadata": {},
-      "checksum": "33cf6782d8945def098f928bb52a6031c492bc0e9743ee58a5aa8c3408e7c280"
+      "checksum": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+    },
+    "1779959505118-201fdc9e": {
+      "id": "1779959505118-201fdc9e",
+      "filename": "googlelogo_color_272x92dp.png",
+      "mimeType": "image/png",
+      "size": 5969,
+      "storedAt": 1779959505119,
+      "metadata": {
+        "source_url": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
+        "browser_preset": "",
+        "client_id": "",
+        "task_id": "task-1779959504636-cc44"
+      },
+      "checksum": "5776cd87617eacec3bc00ebcf530d1924026033eda852f706c1a675a98915826"
+    },
+    "1779959805245-ada3b3e7": {
+      "id": "1779959805245-ada3b3e7",
+      "filename": "large-test.bin",
+      "mimeType": "application/octet-stream",
+      "size": 20971520,
+      "storedAt": 1779959805333,
+      "metadata": {},
+      "checksum": "424d994d6ad6c4297a47f4c0ac4927dc6cb655091f4f4ff81ce2218b9d2235b3"
     }
   },
-  "totalBytes": 15
+  "totalBytes": 20977493
 }

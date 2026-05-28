@@ -172,7 +172,9 @@ function startHeartbeat(deviceId: string) {
 function startGrpcServer(): Promise<void> {
   return new Promise((resolve, reject) => {
     const Service = loadFTProto();
-    const server = new grpc.Server();
+    const server = new grpc.Server({
+      'grpc.max_receive_message_length': 1024 * 1024 * 1024,
+    });
 
     server.addService(Service.service, {
       PushFile: pushFileHandler,
