@@ -473,7 +473,6 @@ export default function FingerprintConfig({
               />
             </div>
           </div>
-          </div>
         </div>
       </div>
 
