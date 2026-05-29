@@ -563,7 +563,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     dnsHosts = "",
     lbStrategy = "fastest",
     useSidecar = false,       // 是否使用 Go sidecar 进行真实指纹控制
-    sidecarAddress = "localhost:50053",
+    sidecarAddress = "localhost:50054",
     tcpWindowScale = 7,       // TCP Window Scale factor
     tcpSack = true,           // TCP Selective ACK
     tcpTimestamps = true,     // TCP Timestamps

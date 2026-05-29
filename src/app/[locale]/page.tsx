@@ -143,7 +143,7 @@ export default function Page() {
 
   // Go sidecar 真实指纹控制
   const [useSidecar, setUseSidecar] = useState(false);
-  const [sidecarAddress, setSidecarAddress] = useState("localhost:50053");
+  const [sidecarAddress, setSidecarAddress] = useState("localhost:50054");
   const [tcpOSPreset, setTcpOSPreset] = useState<"" | "windows" | "macos" | "linux">("");
   const [proxyMode, setProxyMode] = useState<"DIRECT" | "SOCKS5" | "HTTP_CONNECT">("DIRECT");
   const [proxyNodesJSON, setProxyNodesJSON] = useState("");

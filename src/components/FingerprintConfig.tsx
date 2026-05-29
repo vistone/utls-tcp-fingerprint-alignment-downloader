@@ -490,7 +490,7 @@ export default function FingerprintConfig({
                 <span className="text-[10px] uppercase font-mono text-green-400 font-bold">
                   Enable Real Fingerprint Control
                 </span>
-                <p className="text-[9px] text-gray-600 mt-0.5">Requires Go sidecar running on port 50053</p>
+                <p className="text-[9px] text-gray-600 mt-0.5">Requires Go sidecar running on port 50054</p>
               </div>
               <button
                 onClick={() => setUseSidecar(!useSidecar)}
@@ -512,7 +512,7 @@ export default function FingerprintConfig({
                   type="text"
                   value={sidecarAddress}
                   onChange={(e) => setSidecarAddress(e.target.value)}
-                  placeholder="localhost:50053"
+                  placeholder="localhost:50054"
                   className="w-full bg-[#111116] border border-[#2d2d35] rounded px-2.5 py-1.5 text-green-300 focus:outline-none focus:border-green-500 text-xs font-mono"
                 />
                 <label className="text-[9px] text-gray-500 block">TCP OS Preset (overrides manual TTL/MSS)</label>
