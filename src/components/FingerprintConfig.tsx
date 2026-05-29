@@ -476,10 +476,9 @@ export default function FingerprintConfig({
         </div>
       </div>
 
-      {/* Go Sidecar Engine - 真实 TCP/TLS 指纹修改 */}
       <div className="bg-[#111116] border border-[#2d2d35] p-5 rounded relative overflow-hidden shadow-xl">
         <h2 className="text-xs font-bold uppercase tracking-wider text-white font-mono flex items-center gap-2 mb-4">
-          <span className="w-4 h-4 text-green-400">⚡</span>
+          <span className="w-4 h-4 text-green-400">&#x26A1;</span>
           Go Sidecar Engine (Real TCP/TLS Fingerprint)
         </h2>
         <div className="space-y-3 font-mono text-xs">
@@ -493,14 +492,10 @@ export default function FingerprintConfig({
               </div>
               <button
                 onClick={() => setUseSidecar(!useSidecar)}
-                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${
-                  useSidecar ? "bg-green-500" : "bg-gray-700"
-                }`}
+                className={'relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ' + (useSidecar ? "bg-green-500" : "bg-gray-700")}
               >
                 <span
-                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-[#111116] shadow-lg transition ${
-                    useSidecar ? "translate-x-4" : "translate-x-0"
-                  }`}
+                  className={'pointer-events-none inline-block h-4 w-4 rounded-full bg-[#111116] shadow-lg transition ' + (useSidecar ? "translate-x-4" : "translate-x-0")}
                 />
               </button>
             </div>
@@ -514,13 +509,13 @@ export default function FingerprintConfig({
                   placeholder="localhost:50054"
                   className="w-full bg-[#111116] border border-[#2d2d35] rounded px-2.5 py-1.5 text-green-300 focus:outline-none focus:border-green-500 text-xs font-mono"
                 />
-                <label className="text-[9px] text-gray-500 block">TCP OS Preset (overrides manual TTL/MSS)</label>
+                <label className="text-[9px] text-gray-500 block">TCP OS Preset</label>
                 <select
                   value={tcpOSPreset}
                   onChange={(e) => setTcpOSPreset(e.target.value as any)}
                   className="w-full bg-[#111116] border border-[#2d2d35] rounded px-2.5 py-1.5 text-green-300 focus:outline-none focus:border-green-500 text-xs font-mono"
                 >
-                  <option value="">Manual (use slider values)</option>
+                  <option value="">Manual</option>
                   <option value="windows">Windows (TTL=128, MSS=1460, WScale=8)</option>
                   <option value="macos">macOS (TTL=64, MSS=1460, WScale=3)</option>
                   <option value="linux">Linux (TTL=64, MSS=1460, WScale=7)</option>
@@ -531,7 +526,7 @@ export default function FingerprintConfig({
                   onChange={(e) => setProxyMode(e.target.value as any)}
                   className="w-full bg-[#111116] border border-[#2d2d35] rounded px-2.5 py-1.5 text-green-300 focus:outline-none focus:border-green-500 text-xs font-mono"
                 >
-                  <option value="DIRECT">Direct (no proxy)</option>
+                  <option value="DIRECT">Direct</option>
                   <option value="SOCKS5">SOCKS5 Proxy</option>
                   <option value="HTTP_CONNECT">HTTP CONNECT Proxy</option>
                 </select>
@@ -542,14 +537,12 @@ export default function FingerprintConfig({
                   placeholder='[{"host":"127.0.0.1","port":1080,"region":"US","weight":1}]'
                   className="w-full bg-[#111116] border border-[#2d2d35] rounded px-2.5 py-1.5 text-green-300 focus:outline-none focus:border-green-500 text-xs font-mono h-16"
                 />
-                <p className="text-[9px] text-gray-600">
-                  When proxy is enabled, remote server sees the proxy IP instead of your server IP.
-                  Rotation uses round-robin by default.
-                </p>
               </div>
             )}
           </div>
         </div>
       </div>
+
+    </div>
   );
 }
