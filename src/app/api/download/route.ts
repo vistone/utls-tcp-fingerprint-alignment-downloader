@@ -16,6 +16,7 @@ import {
   selectBalancedIp,
   customDnsCache,
 } from "@/lib/dns";
+import { downloadWithFingerprint, pingSidecar } from "@/lib/sidecar-client";
 
 const TLS_REJECT_UNAUTHORIZED = process.env.TLS_REJECT_UNAUTHORIZED !== "false";
 
@@ -561,6 +562,15 @@ export async function POST(request: NextRequest): Promise<Response> {
     dnsCacheEnabled = true,
     dnsHosts = "",
     lbStrategy = "fastest",
+    useSidecar = false,       // 是否使用 Go sidecar 进行真实指纹控制
+    sidecarAddress = "localhost:50053",
+    tcpWindowScale = 7,       // TCP Window Scale factor
+    tcpSack = true,           // TCP Selective ACK
+    tcpTimestamps = true,     // TCP Timestamps
+    tcpOSPreset = "",         // "windows", "macos", "linux" - 自动填充 TCP 参数
+    proxyMode = "DIRECT",     // SOCKS5 / HTTP_CONNECT / DIRECT
+    proxyNodes = "",          // JSON: [{"host":"...","port":1080,"region":"US"}]
+    proxyRotation = "round_robin",
   } = body;
 
   if (!targetUrl) {
@@ -617,6 +627,123 @@ export async function POST(request: NextRequest): Promise<Response> {
       };
       const targetCdnName = cdnNames[cdnType] || "Cloudflare WAF";
       sendLog("log", `[WAF-AUDIT] Target CDN: [${targetCdnName}]`);
+
+      // ===== Go Sidecar 真实指纹下载路径 =====
+      if (useSidecar) {
+        sendLog("log", `[SIDECAR] Using Go sidecar for real TCP/TLS fingerprint control`);
+        sendLog("log", `[SIDECAR] Sidecar address: ${sidecarAddress}`);
+
+        // 根据 CDN 类型优化参数
+        let effectivePreset = browserPreset;
+        let effectiveH2Window = safeParseInt(h2WindowIncrement, 6291456);
+        let effectiveWS = tcpWindowScale;
+        let effectiveSACK = tcpSack;
+        let effectiveTS = tcpTimestamps;
+        let effectiveTTL = tcpTtl;
+        let effectiveMSS = tcpMss;
+        let effectiveWindow = safeParseInt(tcpWindowSize, 65535);
+
+        if (cdnType === "cloudflare") {
+          if (effectivePreset.startsWith("chrome") && effectiveH2Window !== 6291456) {
+            sendLog("log", `[CF-OPT] Corrected H2 window to 6291456 (Cloudflare fingerprint default)`);
+            effectiveH2Window = 6291456;
+          }
+        } else if (cdnType === "akamai") {
+          const uaLower = userAgent?.toLowerCase() || "";
+          if (uaLower.includes("windows")) { effectiveTTL = 128; effectiveMSS = 1460; effectiveWS = 8; }
+          else if (uaLower.includes("mac")) { effectiveTTL = 64; effectiveMSS = 1460; effectiveWS = 3; }
+          else if (uaLower.includes("linux")) { effectiveTTL = 64; effectiveMSS = 1460; effectiveWS = 7; }
+          sendLog("log", `[AKAMAI-OPT] OS-aligned TCP: TTL=${effectiveTTL} MSS=${effectiveMSS} WScale=${effectiveWS}`);
+        }
+
+        // 如果指定了 OS 预设，覆盖 TCP 参数
+        if (tcpOSPreset === "windows") { effectiveTTL = 128; effectiveMSS = 1460; effectiveWS = 8; effectiveWindow = 65535; }
+        else if (tcpOSPreset === "macos") { effectiveTTL = 64; effectiveMSS = 1460; effectiveWS = 3; effectiveWindow = 65535; }
+        else if (tcpOSPreset === "linux") { effectiveTTL = 64; effectiveMSS = 1460; effectiveWS = 7; effectiveWindow = 29200; }
+
+        // 解析代理节点
+        let parsedProxyNodes: any[] = [];
+        try {
+          if (proxyNodes && proxyNodes.trim()) {
+            parsedProxyNodes = JSON.parse(proxyNodes);
+          }
+        } catch { sendLog("log", `[PROXY] Invalid proxy nodes JSON, using direct connection`); }
+
+        const sidecarReq = {
+          targetUrl,
+          browserPreset: effectivePreset,
+          tcpTtl: effectiveTTL,
+          tcpMss: effectiveMSS,
+          tcpWindowScale: effectiveWS,
+          tcpSack: effectiveSACK,
+          tcpTimestamps: effectiveTS,
+          tcpWindowSize: effectiveWindow,
+          userAgent: userAgent || "Mozilla/5.0",
+          enableGrease: browserPreset.includes("chrome"),
+          h2WindowIncrement: effectiveH2Window,
+          cdnType,  // 传给 sidecar 的 CDN 优化引擎
+          proxy: parsedProxyNodes.length > 0 ? {
+            mode: proxyMode as any,
+            nodes: parsedProxyNodes,
+            rotationStrategy: proxyRotation,
+          } : undefined,
+        };
+
+        sendLog("log", `[SIDECAR-TCP] Sending fingerprint config to Go sidecar...`);
+        sendLog("log", `[SIDECAR-SYN] TTL=${effectiveTTL} | MSS=${effectiveMSS} | WScale=${effectiveWS} | SACK=${effectiveSACK} | TS=${effectiveTS} | Window=${effectiveWindow}`);
+        sendLog("log", `[SIDECAR-TLS] Preset=${effectivePreset} | H2Window=${effectiveH2Window}`);
+
+        return new Promise<void>((resolve) => {
+          const call = downloadWithFingerprint(
+            sidecarAddress,
+            sidecarReq as any,
+            (event) => {
+              switch (event.type) {
+                case "log":
+                  sendLog("log", `[SIDECAR] ${event.message}`);
+                  break;
+                case "state":
+                  sendLog("state", "", { state: event.state });
+                  break;
+                case "progress":
+                  sendLog("progress", "", {
+                    progress: event.progress,
+                    speed: event.speedMbps || 0,
+                    received: event.receivedBytes || 0,
+                    total: event.totalBytes || 0,
+                  });
+                  break;
+                case "tls_info":
+                  sendLog("log", `[SIDECAR-TLS] Version=${event.tlsVersion} | Cipher=${event.cipherSuite} | ALPN=${event.alpn} | JA4=${event.ja4}`);
+                  sendLog("log", `[SIDECAR-TLS] JA3=${event.ja3}`);
+                  break;
+                case "tcp_info":
+                  sendLog("log", `[SIDECAR-TCP-REAL] ✅ SYN包实际发送参数证实:`);
+                  sendLog("log", `[SIDECAR-TCP-REAL] TTL=${event.actualTtl} | MSS=${event.actualMss} | WScale=${event.actualWindowScale} | SACK=${event.actualSack} | TS=${event.actualTimestamps}`);
+                  sendLog("log", `[SIDECAR-TCP-REAL] SourceIP=${event.sourceIp} | DestIP=${event.destIp}`);
+                  if (event.proxyUsed) sendLog("log", `[SIDECAR-PROXY] Exit via: ${event.proxyUsed}`);
+                  break;
+                case "error":
+                  sendLog("error", `[SIDECAR] ${event.message}`);
+                  break;
+                case "complete":
+                  sendLog("log", `[SIDECAR] Download complete: ${(event.totalBytes / 1024 / 1024).toFixed(2)} MB in ${event.durationSeconds.toFixed(2)}s`);
+                  break;
+              }
+            },
+            (error) => {
+              sendLog("error", `[SIDECAR-ERR] ${error}`);
+              sendLog("state", "", { state: "failed" });
+              closeStream();
+              resolve();
+            },
+            () => {
+              closeStream();
+              resolve();
+            },
+          );
+        });
+      }
 
       // --- CDN-specific fingerprint optimization ---
       // Mutable params that CDN type can override

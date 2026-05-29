@@ -1,0 +1,149 @@
+syntax = "proto3";
+
+package sidecar;
+
+option go_package = "github.com/tcp-fingerprint/sidecar/pkg/proto/sidecar";
+
+service FingerprintDownloader {
+  // 使用指定的指纹配置发起下载，返回数据流
+  rpc Download(DownloadRequest) returns (stream DownloadEvent);
+  
+  // 检查 sidecar 是否存活
+  rpc Ping(PingRequest) returns (PingResponse);
+  
+  // 获取当前支持的浏览器预设列表
+  rpc GetPresets(Empty) returns (PresetList);
+}
+
+message DownloadRequest {
+  string target_url = 1;
+  string browser_preset = 2;       // chrome_124, firefox_120, safari_17, etc.
+  int32 tcp_ttl = 3;               // IP TTL (32-255)
+  int32 tcp_mss = 4;               // TCP MSS (1200-1500)
+  int32 tcp_window_scale = 5;      // Window Scale factor (0-14)
+  bool tcp_sack = 6;               // Selective ACK permitted
+  bool tcp_timestamps = 7;         // TCP Timestamps option
+  int32 tcp_window_size = 8;       // TCP Initial Window Size
+  string user_agent = 9;
+  bool enable_grease = 10;
+  int32 h2_window_increment = 11;  // HTTP/2 SETTINGS initial window size
+  
+  // IP 隐藏 / 出口配置
+  ProxyConfig proxy = 12;
+  DnsConfig dns = 13;
+  
+  // CDN 优化引擎
+  string cdn_type = 14;  // "cloudflare", "akamai", "incapsula", "custom", 空=不优化
+}
+
+message ProxyConfig {
+  ProxyMode mode = 1;
+  repeated ProxyNode nodes = 2;    // 代理节点列表，为空则直连
+  string rotation_strategy = 3;   // "round_robin", "random", "lowest_latency"
+}
+
+enum ProxyMode {
+  DIRECT = 0;
+  SOCKS5 = 1;
+  HTTP_CONNECT = 2;
+}
+
+message ProxyNode {
+  string host = 1;
+  int32 port = 2;
+  string username = 3;
+  string password = 4;
+  string bind_ip = 5;              // 本地绑定 IP（多网卡多 IP 场景）
+  string region = 6;               // 节点地域标识
+  int32 weight = 7;
+}
+
+message DnsConfig {
+  bool enabled = 1;
+  repeated string servers = 2;
+  int32 timeout_ms = 3;
+  bool parallel = 4;
+  bool cache_enabled = 5;
+  string hosts_override = 6;
+  string lb_strategy = 7;         // "fastest", "round_robin", "random", "priority"
+}
+
+message DownloadEvent {
+  oneof event {
+    LogEvent log = 1;
+    ProgressEvent progress = 2;
+    StateEvent state = 3;
+    ErrorEvent error = 4;
+    TlsInfo tls_info = 5;
+    TcpInfo tcp_info = 6;
+    CompleteEvent complete = 7;
+  }
+}
+
+message LogEvent {
+  string message = 1;
+}
+
+message ProgressEvent {
+  double progress = 1;       // 0-100
+  double speed_mbps = 2;
+  int64 received_bytes = 3;
+  int64 total_bytes = 4;
+}
+
+message StateEvent {
+  string state = 1;          // "handshake", "downloading", "completed", "failed"
+}
+
+message ErrorEvent {
+  string message = 1;
+  string code = 2;
+}
+
+message TlsInfo {
+  string ja4 = 1;
+  string ja3 = 2;
+  string cipher_suite = 3;
+  string tls_version = 4;
+  string alpn = 5;
+  bool grease_detected = 6;
+}
+
+message TcpInfo {
+  int32 actual_ttl = 1;
+  int32 actual_mss = 2;
+  int32 actual_window_scale = 3;
+  bool actual_sack = 4;
+  bool actual_timestamps = 5;
+  string source_ip = 6;
+  string dest_ip = 7;
+  string proxy_used = 8;
+}
+
+message CompleteEvent {
+  int64 total_bytes = 1;
+  double duration_seconds = 2;
+  double avg_speed_mbps = 3;
+}
+
+message PingRequest {}
+message PingResponse {
+  string version = 1;
+  int64 uptime_seconds = 2;
+}
+
+message Empty {}
+
+message PresetList {
+  repeated Preset presets = 1;
+}
+
+message Preset {
+  string id = 1;
+  string name = 2;
+  string user_agent = 3;
+  string ja3 = 4;
+  string ja4 = 5;
+  int32 default_h2_window = 6;
+  bool has_grease = 7;
+}

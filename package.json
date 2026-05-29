@@ -1,11 +1,13 @@
 {
   "name": "tcp-fingerprint-aligner",
   "private": true,
-  "version": "1.0.7",
+  "version": "2.0.0",
   "scripts": {
     "dev": "npx tsx scripts/start-hub.ts & npx tsx server/src/storage-server.ts --hub localhost:50051 --name \"Storage-Server\" --port 50052 & next dev",
+    "dev:sidecar": "sudo sidecar/bin/sidecar --port 50053 & npx tsx scripts/start-hub.ts & npx tsx server/src/storage-server.ts --hub localhost:50051 --name \"Storage-Server\" --port 50052 & next dev",
     "build": "next build",
     "start": "next start",
+    "start:sidecar": "./start.sh",
     "lint": "next lint && tsc --noEmit"
   },
   "dependencies": {

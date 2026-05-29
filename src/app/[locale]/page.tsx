@@ -141,6 +141,13 @@ export default function Page() {
   const [proxyHost, setProxyHost] = useState("");
   const [proxyPort, setProxyPort] = useState("");
 
+  // Go sidecar 真实指纹控制
+  const [useSidecar, setUseSidecar] = useState(false);
+  const [sidecarAddress, setSidecarAddress] = useState("localhost:50053");
+  const [tcpOSPreset, setTcpOSPreset] = useState<"" | "windows" | "macos" | "linux">("");
+  const [proxyMode, setProxyMode] = useState<"DIRECT" | "SOCKS5" | "HTTP_CONNECT">("DIRECT");
+  const [proxyNodesJSON, setProxyNodesJSON] = useState("");
+
   const [globalDnsStatus, setGlobalDnsStatus] = useState<GlobalDnsStatus | null>(null);
   const [batchDomainsInput, setBatchDomainsInput] = useState("google.com, clouflare.com, github.com");
   const [batchTimeout, setBatchTimeout] = useState(1000);
@@ -571,6 +578,14 @@ export default function Page() {
       dnsCacheEnabled,
       dnsHosts,
       lbStrategy,
+      useSidecar,
+      sidecarAddress,
+      tcpWindowScale: tcpPreset === "windows" ? 8 : tcpPreset === "macos" ? 3 : 7,
+      tcpSack: true,
+      tcpTimestamps: true,
+      tcpOSPreset,
+      proxyMode,
+      proxyNodes: proxyNodesJSON,
     };
 
     try {
@@ -843,6 +858,16 @@ export default function Page() {
             grpcStorageServerId={grpcStorageServerId}
             setGrpcStorageServerId={setGrpcStorageServerId}
             storageServers={storageServers}
+            useSidecar={useSidecar}
+            setUseSidecar={setUseSidecar}
+            sidecarAddress={sidecarAddress}
+            setSidecarAddress={setSidecarAddress}
+            tcpOSPreset={tcpOSPreset}
+            setTcpOSPreset={setTcpOSPreset}
+            proxyMode={proxyMode}
+            setProxyMode={setProxyMode as (v: "DIRECT" | "SOCKS5" | "HTTP_CONNECT") => void}
+            proxyNodesJSON={proxyNodesJSON}
+            setProxyNodesJSON={setProxyNodesJSON}
           />
           <DnsConfig
             dnsEnabled={dnsEnabled}

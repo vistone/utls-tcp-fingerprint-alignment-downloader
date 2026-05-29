@@ -43,6 +43,17 @@ interface FingerprintConfigProps {
   grpcStorageServerId: string;
   setGrpcStorageServerId: (v: string) => void;
   storageServers: { serverId: string; name: string; address: string }[];
+  // Go sidecar 真实指纹控制
+  useSidecar: boolean;
+  setUseSidecar: (v: boolean) => void;
+  sidecarAddress: string;
+  setSidecarAddress: (v: string) => void;
+  tcpOSPreset: string;
+  setTcpOSPreset: (v: "" | "windows" | "macos" | "linux") => void;
+  proxyMode: string;
+  setProxyMode: (v: "DIRECT" | "SOCKS5" | "HTTP_CONNECT") => void;
+  proxyNodesJSON: string;
+  setProxyNodesJSON: (v: string) => void;
 }
 
 export default function FingerprintConfig({
@@ -85,6 +96,16 @@ export default function FingerprintConfig({
   grpcStorageServerId,
   setGrpcStorageServerId,
   storageServers,
+  useSidecar,
+  setUseSidecar,
+  sidecarAddress,
+  setSidecarAddress,
+  tcpOSPreset,
+  setTcpOSPreset,
+  proxyMode,
+  setProxyMode,
+  proxyNodesJSON,
+  setProxyNodesJSON,
 }: FingerprintConfigProps) {
   const t = useTranslations("FingerprintConfig");
   return (
@@ -452,8 +473,84 @@ export default function FingerprintConfig({
               />
             </div>
           </div>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Go Sidecar Engine - 真实 TCP/TLS 指纹修改 */}
+      <div className="bg-[#111116] border border-[#2d2d35] p-5 rounded relative overflow-hidden shadow-xl">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-white font-mono flex items-center gap-2 mb-4">
+          <span className="w-4 h-4 text-green-400">⚡</span>
+          Go Sidecar Engine (Real TCP/TLS Fingerprint)
+        </h2>
+        <div className="space-y-3 font-mono text-xs">
+          <div className="space-y-1.5 p-3 bg-[#050507] border border-[#2d2d35]/60 rounded">
+            <div className="flex items-center justify-between">
+              <div className="max-w-[75%]">
+                <span className="text-[10px] uppercase font-mono text-green-400 font-bold">
+                  Enable Real Fingerprint Control
+                </span>
+                <p className="text-[9px] text-gray-600 mt-0.5">Requires Go sidecar running on port 50053</p>
+              </div>
+              <button
+                onClick={() => setUseSidecar(!useSidecar)}
+                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${
+                  useSidecar ? "bg-green-500" : "bg-gray-700"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-[#111116] shadow-lg transition ${
+                    useSidecar ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+            {useSidecar && (
+              <div className="space-y-2 pt-2">
+                <label className="text-[9px] text-gray-500 block">Sidecar Address</label>
+                <input
+                  type="text"
+                  value={sidecarAddress}
+                  onChange={(e) => setSidecarAddress(e.target.value)}
+                  placeholder="localhost:50053"
+                  className="w-full bg-[#111116] border border-[#2d2d35] rounded px-2.5 py-1.5 text-green-300 focus:outline-none focus:border-green-500 text-xs font-mono"
+                />
+                <label className="text-[9px] text-gray-500 block">TCP OS Preset (overrides manual TTL/MSS)</label>
+                <select
+                  value={tcpOSPreset}
+                  onChange={(e) => setTcpOSPreset(e.target.value as any)}
+                  className="w-full bg-[#111116] border border-[#2d2d35] rounded px-2.5 py-1.5 text-green-300 focus:outline-none focus:border-green-500 text-xs font-mono"
+                >
+                  <option value="">Manual (use slider values)</option>
+                  <option value="windows">Windows (TTL=128, MSS=1460, WScale=8)</option>
+                  <option value="macos">macOS (TTL=64, MSS=1460, WScale=3)</option>
+                  <option value="linux">Linux (TTL=64, MSS=1460, WScale=7)</option>
+                </select>
+                <label className="text-[9px] text-gray-500 block">Proxy Mode</label>
+                <select
+                  value={proxyMode}
+                  onChange={(e) => setProxyMode(e.target.value as any)}
+                  className="w-full bg-[#111116] border border-[#2d2d35] rounded px-2.5 py-1.5 text-green-300 focus:outline-none focus:border-green-500 text-xs font-mono"
+                >
+                  <option value="DIRECT">Direct (no proxy)</option>
+                  <option value="SOCKS5">SOCKS5 Proxy</option>
+                  <option value="HTTP_CONNECT">HTTP CONNECT Proxy</option>
+                </select>
+                <label className="text-[9px] text-gray-500 block">Proxy Nodes JSON</label>
+                <textarea
+                  value={proxyNodesJSON}
+                  onChange={(e) => setProxyNodesJSON(e.target.value)}
+                  placeholder='[{"host":"127.0.0.1","port":1080,"region":"US","weight":1}]'
+                  className="w-full bg-[#111116] border border-[#2d2d35] rounded px-2.5 py-1.5 text-green-300 focus:outline-none focus:border-green-500 text-xs font-mono h-16"
+                />
+                <p className="text-[9px] text-gray-600">
+                  When proxy is enabled, remote server sees the proxy IP instead of your server IP.
+                  Rotation uses round-robin by default.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
   );
 }
